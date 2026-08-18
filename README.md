@@ -171,3 +171,7 @@ Balance lives in a few dedicated places, all hot-reloaded by the dev server:
 - `src/systems/progression.ts` — the XP curve (`xpForLevel`) and every upgrade's effect and weight.
 - `src/systems/weapons.ts` — the per-level formulas for the three sub-weapons.
 - `src/systems/stats.ts` — starting stats per mode.
+
+## License
+
+Licensed under the [Apache License, Version 2.0](LICENSE).
