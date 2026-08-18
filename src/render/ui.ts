@@ -129,6 +129,33 @@ export function bar(
   ctx.restore();
 }
 
+/** Greedy word wrap; returns the lines that fit within `maxWidth` at the current font. */
+export function wrapText(
+  ctx: CanvasRenderingContext2D,
+  value: string,
+  maxWidth: number,
+  size: number,
+  weight = '700',
+): string[] {
+  ctx.save();
+  ctx.font = `${weight} ${size}px ${FONT_STACK}`;
+  const words = value.split(' ');
+  const lines: string[] = [];
+  let line = '';
+  for (const word of words) {
+    const candidate = line === '' ? word : `${line} ${word}`;
+    if (ctx.measureText(candidate).width > maxWidth && line !== '') {
+      lines.push(line);
+      line = word;
+    } else {
+      line = candidate;
+    }
+  }
+  if (line !== '') lines.push(line);
+  ctx.restore();
+  return lines;
+}
+
 export interface Rect {
   x: number;
   y: number;

@@ -234,4 +234,56 @@ export class GameAudio {
   ui(): void {
     this.tone({ type: 'square', from: 880, to: 1180, duration: 0.07, gain: 0.06 });
   }
+
+  /* ---- Arena mode ------------------------------------------------------- */
+
+  private lastSeedAt = -1;
+
+  seedShot(): void {
+    const ctx = this.ctx;
+    if (ctx) {
+      if (ctx.currentTime - this.lastSeedAt < 0.05) return;
+      this.lastSeedAt = ctx.currentTime;
+    }
+    this.tone({ type: 'triangle', from: 940, to: 1500, duration: 0.09, gain: 0.05 });
+  }
+
+  /** Soft tick when XP motes are absorbed; deliberately quiet, it fires constantly. */
+  xp(): void {
+    this.tone({ type: 'sine', from: 1320, to: 1760, duration: 0.05, gain: 0.022 });
+  }
+
+  levelUp(): void {
+    [660, 880, 1100, 1320].forEach((f, i) => {
+      this.tone({ type: 'triangle', from: f, duration: 0.16, gain: 0.085, delay: i * 0.06 });
+    });
+  }
+
+  upgradePicked(): void {
+    this.tone({ type: 'square', from: 520, to: 1040, duration: 0.14, gain: 0.07 });
+  }
+
+  swarmWarning(): void {
+    this.tone({ type: 'sawtooth', from: 300, to: 190, duration: 0.5, gain: 0.09 });
+    this.hiss({ duration: 0.6, gain: 0.07, freqFrom: 900, freqTo: 340, q: 0.7 });
+  }
+
+  bossWarning(): void {
+    [110, 110, 146].forEach((f, i) => {
+      this.tone({ type: 'sawtooth', from: f, to: f * 0.92, duration: 0.5, gain: 0.15, delay: i * 0.34 });
+    });
+    this.hiss({ duration: 1.1, gain: 0.08, freqFrom: 420, freqTo: 120, q: 0.6 });
+  }
+
+  revive(): void {
+    [392, 523, 659, 880].forEach((f, i) => {
+      this.tone({ type: 'triangle', from: f, duration: 0.3, gain: 0.1, delay: i * 0.09 });
+    });
+  }
+
+  victory(): void {
+    [523, 659, 784, 1047, 1319, 1568].forEach((f, i) => {
+      this.tone({ type: 'square', from: f, duration: 0.3, gain: 0.085, delay: i * 0.14 });
+    });
+  }
 }

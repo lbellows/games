@@ -1,6 +1,12 @@
 /** Tiny localStorage wrapper that degrades to in-memory when storage is unavailable. */
 
-const KEY_HIGHSCORE = 'garden-defenders.highscore';
+export type ScoreMode = 'campaign' | 'arena';
+
+/** The campaign key predates Arena mode, so it keeps its original name. */
+const KEY_HIGHSCORE: Record<ScoreMode, string> = {
+  campaign: 'garden-defenders.highscore',
+  arena: 'garden-defenders.arena.highscore',
+};
 const KEY_MUTED = 'garden-defenders.muted';
 
 const memory = new Map<string, string>();
@@ -24,14 +30,14 @@ function write(key: string, value: string): void {
   }
 }
 
-export function loadHighScore(): number {
-  const raw = read(KEY_HIGHSCORE);
+export function loadHighScore(mode: ScoreMode = 'campaign'): number {
+  const raw = read(KEY_HIGHSCORE[mode]);
   const n = raw === null ? 0 : Number.parseInt(raw, 10);
   return Number.isFinite(n) && n > 0 ? n : 0;
 }
 
-export function saveHighScore(score: number): void {
-  write(KEY_HIGHSCORE, String(Math.max(0, Math.floor(score))));
+export function saveHighScore(score: number, mode: ScoreMode = 'campaign'): void {
+  write(KEY_HIGHSCORE[mode], String(Math.max(0, Math.floor(score))));
 }
 
 export function loadMuted(): boolean {

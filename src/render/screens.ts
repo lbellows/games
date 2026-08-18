@@ -3,14 +3,39 @@ import { Enemy } from '../entities/enemy.ts';
 import { TAU } from '../core/math.ts';
 import { button, hitRect, panel, text, type Rect } from './ui.ts';
 
-export const START_BUTTON: Rect = { x: VIEW.w / 2 - 110, y: 594, w: 220, h: 52 };
+export const START_BUTTON: Rect = { x: VIEW.w / 2 - 110, y: 600, w: 220, h: 48 };
 export const RESTART_BUTTON: Rect = { x: VIEW.w / 2 - 120, y: 486, w: 240, h: 54 };
+
+export type GameMode = 'campaign' | 'arena';
+export const MODES: GameMode[] = ['campaign', 'arena'];
+
+const CARD_W = 420;
+const CARD_H = 196;
+const CARD_GAP = 30;
+
+export function modeCardRect(index: number): Rect {
+  const total = 2 * CARD_W + CARD_GAP;
+  return { x: (VIEW.w - total) / 2 + index * (CARD_W + CARD_GAP), y: 276, w: CARD_W, h: CARD_H };
+}
+
+/** Index of the mode card under the pointer, or -1. */
+export function modeCardAt(x: number, y: number): number {
+  for (let i = 0; i < MODES.length; i++) {
+    if (hitRect(modeCardRect(i), x, y)) return i;
+  }
+  return -1;
+}
 
 export interface ScreenContext {
   time: number;
   pointerX: number;
   pointerY: number;
   highScore: number;
+}
+
+export interface TitleContext extends ScreenContext {
+  selectedMode: number;
+  bestByMode: Record<GameMode, number>;
 }
 
 let icons: Enemy[] | null = null;
@@ -43,82 +68,178 @@ function drawIcon(ctx: CanvasRenderingContext2D, enemy: Enemy, x: number, y: num
   ctx.restore();
 }
 
-export function drawTitle(ctx: CanvasRenderingContext2D, c: ScreenContext): void {
+export function drawTitle(ctx: CanvasRenderingContext2D, c: TitleContext): void {
   dim(ctx, 0.68);
 
   const bob = Math.sin(c.time * 1.7) * 4;
   ctx.save();
   ctx.shadowColor = 'rgba(120,240,140,0.55)';
   ctx.shadowBlur = 26;
-  text(ctx, 'GARDEN', VIEW.w / 2, 150 + bob, {
-    size: 74,
+  text(ctx, 'GARDEN', VIEW.w / 2, 138 + bob, {
+    size: 68,
     align: 'center',
     letterSpacing: 10,
     color: '#f2fff0',
   });
-  text(ctx, 'DEFENDERS', VIEW.w / 2, 216 + bob, {
-    size: 56,
+  text(ctx, 'DEFENDERS', VIEW.w / 2, 198 + bob, {
+    size: 52,
     align: 'center',
     letterSpacing: 14,
     color: COLORS.health,
   });
   ctx.restore();
 
-  text(ctx, 'TEN WAVES OF HUNGRY BUGS. ONE GARDENER. ONE SPRAY BOTTLE.', VIEW.w / 2, 252, {
-    size: 14,
+  text(ctx, 'HUNGRY BUGS. ONE GARDENER. ONE SPRAY BOTTLE.', VIEW.w / 2, 232, {
+    size: 13,
     align: 'center',
     color: COLORS.textDim,
     letterSpacing: 3,
   });
+  text(ctx, 'CHOOSE A MODE', VIEW.w / 2, 262, {
+    size: 12,
+    align: 'center',
+    color: COLORS.text,
+    letterSpacing: 5,
+  });
 
-  /* ---- bestiary -------------------------------------------------------- */
-  const bx = VIEW.w / 2 - 300;
-  panel(ctx, bx, 278, 600, 128, 12);
-  const rows: Array<[string, string]> = [
-    ['APHID', 'Fast, flimsy, never alone'],
-    ['BEETLE', 'Armoured tank — heavy contact damage'],
-    ['MOTH', 'Weaves in, then bursts forward'],
+  /* ---- mode cards ------------------------------------------------------ */
+  const cards: Array<{ title: string; tag: string; lines: string[]; accent: string }> = [
+    {
+      title: 'CAMPAIGN',
+      tag: '10 WAVES, THEN ENDLESS',
+      lines: [
+        'Hold the garden wave by wave',
+        'Manual spray  ·  seed pickups',
+        'Beat wave 10 to save the garden',
+      ],
+      accent: COLORS.health,
+    },
+    {
+      title: 'ARENA',
+      tag: '10-MINUTE ROGUELITE RUN',
+      lines: [
+        'Auto-fire  ·  level up  ·  draft upgrades',
+        'Swarms, elites and two bosses',
+        'Survive the clock to win',
+      ],
+      accent: COLORS.energy,
+    },
   ];
-  const list = enemyIcons();
-  rows.forEach(([name, desc], i) => {
-    const y = 312 + i * 36;
-    const enemy = list[i] as Enemy;
-    drawIcon(ctx, enemy, bx + 40, y - 4, c.time, 1.15);
-    text(ctx, name, bx + 74, y + 1, { size: 15, letterSpacing: 2, color: iconColor(i) });
-    text(ctx, desc, bx + 180, y + 1, { size: 13, color: COLORS.textDim });
+
+  cards.forEach((card, i) => {
+    const r = modeCardRect(i);
+    const mode = MODES[i] as GameMode;
+    const hovered = hitRect(r, c.pointerX, c.pointerY);
+    const active = c.selectedMode === i || hovered;
+    const lift = active ? 4 : 0;
+    const y = r.y - lift;
+
+    ctx.save();
+    if (active) {
+      ctx.shadowColor = card.accent;
+      ctx.shadowBlur = 20;
+    }
+    panel(ctx, r.x, y, r.w, r.h, 16, active ? 'rgba(16,34,20,0.95)' : 'rgba(9,20,12,0.88)');
+    ctx.restore();
+
+    ctx.save();
+    ctx.strokeStyle = card.accent;
+    ctx.globalAlpha = active ? 1 : 0.45;
+    ctx.lineWidth = active ? 3 : 1.6;
+    ctx.beginPath();
+    ctx.roundRect(r.x, y, r.w, r.h, 16);
+    ctx.stroke();
+    ctx.restore();
+
+    // hotkey badge
+    ctx.save();
+    ctx.fillStyle = card.accent;
+    ctx.globalAlpha = active ? 1 : 0.65;
+    ctx.beginPath();
+    ctx.roundRect(r.x + 16, y + 16, 24, 24, 7);
+    ctx.fill();
+    ctx.restore();
+    text(ctx, String(i + 1), r.x + 28, y + 34, {
+      size: 14,
+      align: 'center',
+      color: '#08130a',
+      shadow: false,
+    });
+
+    text(ctx, card.title, r.x + r.w / 2, y + 52, {
+      size: 30,
+      align: 'center',
+      letterSpacing: 6,
+      color: active ? '#ffffff' : COLORS.text,
+    });
+    text(ctx, card.tag, r.x + r.w / 2, y + 76, {
+      size: 12,
+      align: 'center',
+      letterSpacing: 3,
+      color: card.accent,
+    });
+    card.lines.forEach((line, li) => {
+      text(ctx, line, r.x + r.w / 2, y + 106 + li * 21, {
+        size: 13,
+        align: 'center',
+        weight: '400',
+        color: COLORS.textDim,
+      });
+    });
+    const best = c.bestByMode[mode];
+    text(ctx, best > 0 ? `BEST  ${best.toLocaleString('en-US')}` : 'NO SCORE YET', r.x + r.w / 2, y + 176, {
+      size: 12,
+      align: 'center',
+      letterSpacing: 2,
+      color: best > 0 ? COLORS.seedScore : 'rgba(157,187,153,0.6)',
+    });
   });
 
   /* ---- controls -------------------------------------------------------- */
-  panel(ctx, bx, 420, 600, 152, 12);
+  const cx = VIEW.w / 2;
+  panel(ctx, cx - 435, 490, 870, 96, 12);
   const controls: Array<[string, string]> = [
-    ['MOVE', 'W A S D  /  ARROW KEYS'],
+    ['MOVE', 'W A S D  /  ARROWS'],
     ['AIM', 'MOUSE  (or last move direction)'],
-    ['SPRAY', 'HOLD LEFT CLICK  /  SPACE'],
+    ['SPRAY', 'HOLD CLICK  /  SPACE'],
     ['PAUSE', 'P  or  ESC'],
     ['MUTE', 'M'],
+    ['UPGRADES', 'CLICK  /  1 2 3'],
   ];
   controls.forEach(([key, value], i) => {
-    const y = 448 + i * 25;
-    text(ctx, key, bx + 40, y, { size: 13, color: COLORS.energy, letterSpacing: 2 });
-    text(ctx, value, bx + 140, y, { size: 13, color: COLORS.text });
+    const col = i % 2;
+    const row = Math.floor(i / 2);
+    const x = cx - 400 + col * 430;
+    const y = 518 + row * 24;
+    text(ctx, key, x, y, { size: 12, color: COLORS.energy, letterSpacing: 2 });
+    text(ctx, value, x + 100, y, { size: 12, color: COLORS.text, weight: '400' });
   });
 
   const hovered = hitRect(START_BUTTON, c.pointerX, c.pointerY);
-  button(ctx, START_BUTTON, 'START  ▸', hovered);
-  text(ctx, 'PRESS ENTER, SPACE OR CLICK', VIEW.w / 2, 668, {
-    size: 12,
+  const startLabel = `START  ${(MODES[c.selectedMode] ?? 'campaign').toUpperCase()}  ▸`;
+  button(ctx, START_BUTTON, startLabel, hovered);
+  text(ctx, '← → SELECT   ·   ENTER OR CLICK TO PLANT YOUR BOOTS', VIEW.w / 2, 668, {
+    size: 11,
     align: 'center',
     color: COLORS.textDim,
     letterSpacing: 3,
   });
-  if (c.highScore > 0) {
-    text(ctx, `BEST SCORE  ${c.highScore.toLocaleString('en-US')}`, VIEW.w / 2, 692, {
-      size: 13,
-      align: 'center',
-      color: COLORS.seedScore,
-      letterSpacing: 2,
+
+  /* ---- bestiary strip -------------------------------------------------- */
+  const list = enemyIcons();
+  const names = ['APHID', 'BEETLE', 'MOTH'];
+  const notes = ['fast swarmer', 'armoured tank', 'weaves + dashes'];
+  names.forEach((name, i) => {
+    const x = VIEW.w / 2 - 330 + i * 235;
+    const y = 698;
+    drawIcon(ctx, list[i] as Enemy, x, y - 4, c.time, 1);
+    text(ctx, name, x + 22, y - 1, { size: 12, color: iconColor(i), letterSpacing: 1 });
+    text(ctx, notes[i] as string, x + 84, y - 1, {
+      size: 11,
+      color: COLORS.textDim,
+      weight: '400',
     });
-  }
+  });
 }
 
 function iconColor(i: number): string {
@@ -132,7 +253,7 @@ export function drawPause(ctx: CanvasRenderingContext2D, c: ScreenContext): void
     align: 'center',
     letterSpacing: 12,
   });
-  text(ctx, 'P or ESC to resume   ·   M to mute   ·   R to restart', VIEW.w / 2, VIEW.h / 2 + 10, {
+  text(ctx, 'P or ESC resume   ·   M mute   ·   R restart   ·   T title', VIEW.w / 2, VIEW.h / 2 + 10, {
     size: 15,
     align: 'center',
     color: COLORS.textDim,
@@ -150,45 +271,65 @@ export function drawPause(ctx: CanvasRenderingContext2D, c: ScreenContext): void
 
 export interface GameOverInfo extends ScreenContext {
   score: number;
-  wave: number;
   newRecord: boolean;
-  kills: number;
-  survived: number;
+  victory: boolean;
+  headline: string;
+  subhead: string;
+  /** Mode-specific stat rows, built by the game. */
+  rows: ReadonlyArray<[string, string]>;
 }
 
 export function drawGameOver(ctx: CanvasRenderingContext2D, c: GameOverInfo): void {
   dim(ctx, 0.74);
-  text(ctx, 'GARDEN OVERRUN', VIEW.w / 2, 190, {
-    size: 56,
+  const accent = c.victory ? COLORS.seedScore : COLORS.danger;
+
+  if (c.victory) {
+    // celebratory glow behind the headline
+    ctx.save();
+    ctx.shadowColor = 'rgba(255,217,61,0.6)';
+    ctx.shadowBlur = 30;
+    text(ctx, c.headline, VIEW.w / 2, 176, {
+      size: 54,
+      align: 'center',
+      letterSpacing: 8,
+      color: accent,
+    });
+    ctx.restore();
+  } else {
+    text(ctx, c.headline, VIEW.w / 2, 176, {
+      size: 54,
+      align: 'center',
+      letterSpacing: 8,
+      color: accent,
+    });
+  }
+  text(ctx, c.subhead, VIEW.w / 2, 204, {
+    size: 14,
     align: 'center',
-    letterSpacing: 8,
-    color: COLORS.danger,
+    letterSpacing: 4,
+    color: COLORS.textDim,
   });
 
-  panel(ctx, VIEW.w / 2 - 250, 232, 500, 216, 14);
-  const rows: Array<[string, string]> = [
-    ['SCORE', c.score.toLocaleString('en-US')],
-    ['BEST', Math.max(c.score, c.highScore).toLocaleString('en-US')],
-    ['WAVE REACHED', String(c.wave)],
-    ['BUGS SPRAYED', String(c.kills)],
-    ['TIME SURVIVED', `${Math.floor(c.survived / 60)}:${String(Math.floor(c.survived % 60)).padStart(2, '0')}`],
-  ];
+  const rows = c.rows.slice(0, 6);
+  const panelH = 30 + rows.length * 32;
+  panel(ctx, VIEW.w / 2 - 250, 226, 500, panelH, 14);
   rows.forEach(([label, value], i) => {
-    const y = 272 + i * 34;
-    text(ctx, label, VIEW.w / 2 - 210, y, { size: 14, color: COLORS.textDim, letterSpacing: 2 });
-    text(ctx, value, VIEW.w / 2 + 210, y, { size: 18, align: 'right', letterSpacing: 1 });
+    const y = 262 + i * 32;
+    text(ctx, label, VIEW.w / 2 - 210, y, { size: 13, color: COLORS.textDim, letterSpacing: 2 });
+    text(ctx, value, VIEW.w / 2 + 210, y, { size: 17, align: 'right', letterSpacing: 1 });
   });
 
+  const afterPanel = 226 + panelH;
   if (c.newRecord) {
     const pulse = 0.5 + 0.5 * Math.sin(c.time * 6);
-    text(ctx, '★ NEW HIGH SCORE ★', VIEW.w / 2, 466, {
+    text(ctx, '★ NEW HIGH SCORE ★', VIEW.w / 2, afterPanel + 30, {
       size: 20,
       align: 'center',
       color: COLORS.seedScore,
       letterSpacing: 4,
     });
     ctx.globalAlpha = 0.4 * pulse;
-    text(ctx, '★ NEW HIGH SCORE ★', VIEW.w / 2, 466, {
+    text(ctx, '★ NEW HIGH SCORE ★', VIEW.w / 2, afterPanel + 30, {
       size: 24,
       align: 'center',
       color: '#fff7c2',
@@ -197,9 +338,9 @@ export function drawGameOver(ctx: CanvasRenderingContext2D, c: GameOverInfo): vo
     ctx.globalAlpha = 1;
   }
 
-  const r: Rect = { ...RESTART_BUTTON, y: c.newRecord ? 506 : 486 };
-  button(ctx, r, 'REPLANT  ↺', hitRect(r, c.pointerX, c.pointerY), COLORS.health);
-  text(ctx, 'PRESS R OR ENTER TO PLAY AGAIN', VIEW.w / 2, r.y + 84, {
+  const r = restartRect(c.newRecord, rows.length);
+  button(ctx, r, c.victory ? 'PLAY AGAIN  ↺' : 'REPLANT  ↺', hitRect(r, c.pointerX, c.pointerY), COLORS.health);
+  text(ctx, 'R OR ENTER TO PLAY AGAIN   ·   T FOR TITLE SCREEN', VIEW.w / 2, r.y + 76, {
     size: 12,
     align: 'center',
     color: COLORS.textDim,
@@ -207,9 +348,10 @@ export function drawGameOver(ctx: CanvasRenderingContext2D, c: GameOverInfo): vo
   });
 }
 
-/** Returns the rect the restart button currently occupies (it shifts for the record banner). */
-export function restartRect(newRecord: boolean): Rect {
-  return { ...RESTART_BUTTON, y: newRecord ? 506 : 486 };
+/** Returns the rect the restart button currently occupies (it shifts with the panel size). */
+export function restartRect(newRecord: boolean, rowCount = 5): Rect {
+  const afterPanel = 226 + 30 + rowCount * 32;
+  return { ...RESTART_BUTTON, y: afterPanel + (newRecord ? 48 : 20) };
 }
 
 export interface Banner {

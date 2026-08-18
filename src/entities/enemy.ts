@@ -19,6 +19,28 @@ export interface EnemyScaling {
   damage: number;
 }
 
+/** Arena mode promotes some bugs: elites are beefy stragglers, bosses are timeline events. */
+export type EnemyVariant = 'normal' | 'elite' | 'boss';
+
+interface VariantSpec {
+  health: number;
+  size: number;
+  speed: number;
+  damage: number;
+  score: number;
+  xp: number;
+  knockResist: number;
+}
+
+const VARIANTS: Record<EnemyVariant, VariantSpec> = {
+  normal: { health: 1, size: 1, speed: 1, damage: 1, score: 1, xp: 1, knockResist: 0 },
+  elite: { health: 5, size: 1.5, speed: 0.92, damage: 1.4, score: 6, xp: 8, knockResist: 0.45 },
+  boss: { health: 30, size: 2.6, speed: 0.74, damage: 1.5, score: 40, xp: 90, knockResist: 0.88 },
+};
+
+/** Base XP dropped by each kind before variant multipliers. */
+const XP_BY_KIND: Record<EnemyKind, number> = { aphid: 1, moth: 2, beetle: 4 };
+
 type DashState = 'cruise' | 'windup' | 'dash';
 
 /** How far outside the fence an enemy may be pushed before it is walled off. */
@@ -27,6 +49,13 @@ const OUT_OF_BOUNDS = SPAWN_MARGIN + 26;
 export class Enemy {
   readonly kind: EnemyKind;
   readonly spec: EnemySpec;
+  readonly variant: EnemyVariant;
+  /** Displayed above the boss health bar. */
+  bossName = '';
+  readonly xpValue: number;
+  readonly scoreValue: number;
+  /** Extra knockback resistance from the variant, on top of the kind's own. */
+  private readonly extraResist: number;
   x: number;
   y: number;
   vx = 0;
@@ -52,17 +81,32 @@ export class Enemy {
   private dashDir: Vec = { x: 0, y: 0 };
   private trailTimer = 0;
 
-  constructor(kind: EnemyKind, x: number, y: number, scale: EnemyScaling) {
+  constructor(
+    kind: EnemyKind,
+    x: number,
+    y: number,
+    scale: EnemyScaling,
+    variant: EnemyVariant = 'normal',
+  ) {
+    const v = VARIANTS[variant];
     this.kind = kind;
     this.spec = ENEMIES[kind];
+    this.variant = variant;
     this.x = x;
     this.y = y;
-    this.maxHp = this.spec.health * scale.health;
+    this.maxHp = this.spec.health * scale.health * v.health;
     this.hp = this.maxHp;
-    this.radius = this.spec.radius;
-    this.speed = this.spec.speed * scale.speed;
-    this.damage = this.spec.damage * scale.damage;
+    this.radius = this.spec.radius * v.size;
+    this.speed = this.spec.speed * scale.speed * v.speed;
+    this.damage = this.spec.damage * scale.damage * v.damage;
+    this.xpValue = XP_BY_KIND[kind] * v.xp;
+    this.scoreValue = Math.round(this.spec.score * v.score);
+    this.extraResist = v.knockResist;
     this.facing = 0;
+  }
+
+  get isBoss(): boolean {
+    return this.variant === 'boss';
   }
 
   get isDashing(): boolean {
@@ -182,7 +226,8 @@ export class Enemy {
 
   applyKnockback(dx: number, dy: number, power: number): void {
     const d = norm(dx, dy);
-    const scale = (1 - this.spec.knockResist) * power;
+    const resist = Math.min(0.95, this.spec.knockResist + this.extraResist);
+    const scale = (1 - resist) * power;
     this.kx += d.x * scale;
     this.ky += d.y * scale;
   }
@@ -197,8 +242,10 @@ export class Enemy {
     ctx.ellipse(0, this.radius * 0.55, this.radius * 0.95, this.radius * 0.5, 0, 0, TAU);
     ctx.fill();
 
+    if (this.variant !== 'normal') this.drawVariantAura(ctx, time);
+
     ctx.rotate(this.facing);
-    ctx.scale(s, s);
+    ctx.scale(s * (this.variant === 'normal' ? 1 : VARIANTS[this.variant].size), s);
 
     switch (this.kind) {
       case 'aphid':
@@ -222,8 +269,8 @@ export class Enemy {
     }
     ctx.restore();
 
-    // Damage read-out for the tanky types.
-    if (this.hp < this.maxHp && this.spec.health >= 26) {
+    // Damage read-out for the tanky types (bosses get a dedicated bar in the HUD).
+    if (this.hp < this.maxHp && (this.spec.health >= 26 || this.variant === 'elite') && !this.isBoss) {
       const w = this.radius * 2.2;
       const y = this.y - this.radius - 9;
       ctx.fillStyle = 'rgba(0,0,0,0.45)';
@@ -231,6 +278,38 @@ export class Enemy {
       ctx.fillStyle = COLORS.danger;
       ctx.fillRect(this.x - w / 2, y, w * (this.hp / this.maxHp), 3.5);
     }
+  }
+
+  private drawVariantAura(ctx: CanvasRenderingContext2D, time: number): void {
+    const boss = this.isBoss;
+    const pulse = 0.5 + 0.5 * Math.sin(time * (boss ? 3.4 : 5.2));
+    const r = this.radius * 1.25 + pulse * 4;
+    ctx.save();
+    ctx.globalAlpha = 0.2 + pulse * 0.2;
+    ctx.fillStyle = boss ? '#ff4f7a' : COLORS.seedScore;
+    ctx.beginPath();
+    ctx.arc(0, 0, r, 0, TAU);
+    ctx.fill();
+    ctx.globalAlpha = 0.85;
+    ctx.strokeStyle = boss ? '#ff4f7a' : COLORS.seedScore;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(0, 0, this.radius * 1.1, 0, TAU);
+    ctx.stroke();
+
+    // little crown so promoted bugs read instantly in a crowd
+    const cw = this.radius * 0.7;
+    const cy = -this.radius * 1.25;
+    ctx.fillStyle = boss ? '#ffd0dd' : COLORS.seedScore;
+    ctx.beginPath();
+    ctx.moveTo(-cw, cy + cw * 0.7);
+    ctx.lineTo(-cw * 0.5, cy);
+    ctx.lineTo(0, cy + cw * 0.55);
+    ctx.lineTo(cw * 0.5, cy);
+    ctx.lineTo(cw, cy + cw * 0.7);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
   }
 
   private legs(ctx: CanvasRenderingContext2D, time: number, count: number, spread: number, length: number, color: string): void {

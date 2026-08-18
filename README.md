@@ -1,7 +1,13 @@
 # Garden Defenders
 
-A top-down survival game for the browser. You are the gardener; waves of insects want your
-vegetable plots. Move, aim, spray, grab seeds, and hold the garden for as long as you can.
+A top-down survival game for the browser. You are the gardener; insects want your vegetable
+plots. Move, aim, spray, grab seeds, and hold the garden for as long as you can.
+
+Two modes, picked from the title screen:
+
+- **Campaign** — 10 hand-paced waves, then endless. Manual spray, seed pickups, wave bonuses.
+- **Arena** — a 10-minute roguelite run. Auto-fire, XP, level-up drafts, sub-weapons, swarms,
+  elites and two bosses.
 
 Everything is generated at runtime — the art is canvas shapes and particles, the sound is
 synthesized with the Web Audio API. No images, no audio files, no backend, no accounts.
@@ -41,13 +47,16 @@ needs Node 23+ (or `node --experimental-strip-types scripts/smoke.mjs` on Node 2
 | Pause / resume | `P` or `Esc` |
 | Mute / unmute | `M` (remembered between sessions) |
 | Restart | `R` (on the pause or game-over screen), `Enter`, or the on-screen button |
+| Back to title | `T` (on the pause or game-over screen) |
+| Pick a mode (title) | `←` `→` or `1` / `2`, then `Enter` — or click a mode card |
+| Pick an upgrade (Arena) | click a card, `1` / `2` / `3`, or `←` `→` + `Enter` |
 | Start | `Enter`, `Space`, or click |
 
 The game is fully playable from the keyboard alone: when the mouse hasn't moved for a couple of
 seconds, aim snaps to the direction you last walked, and the arc in front of the gardener shows
 where the spray will land.
 
-## How to play
+## How to play — Campaign
 
 - **Spray** is a short-range cone. It damages *and* shoves bugs back, so it doubles as crowd
   control. It burns spray energy; energy refills shortly after you let go. Empty the tank and the
@@ -76,6 +85,33 @@ where the spray will land.
 The HUD along the top shows health, spray energy (striped while locked out, with a Bloom timer when
 powered up), score and best, the current wave, and how many bugs are left in it. Mute and pause
 state show as chips in the bottom-right corner.
+
+## How to play — Arena
+
+Arena is a 10-minute roguelite run. The rules above still apply — same gardener, same bugs, same
+seeds — with these differences:
+
+- **Auto-fire.** The spray targets the nearest bug and fires by itself whenever something is in
+  range. Hold left click to override and aim manually. Energy still limits how long you can hose.
+- **XP and levels.** Defeated bugs drop XP motes that magnet toward you. Filling the bar (the thin
+  blue bar under the HUD) freezes the run and deals you **three upgrade cards** — pick one with a
+  click, `1`/`2`/`3`, or `←`/`→` + `Enter`. Multiple levels queue up and you draft them in turn.
+- **16 upgrades**, most stacking several levels: spray damage/range/arc, move speed, max health,
+  regeneration, spray recharge, XP magnet radius, XP gain, knockback, seed value, and **Second
+  Wind**, which lets you survive one fatal hit. Your picks show as icon chips along the bottom.
+- **Three sub-weapons** fight for you once drafted, and level up alongside everything else:
+  - **Sprinkler** — droplets orbiting the gardener, damaging whatever they touch.
+  - **Seed Shot** — homing seeds fired on a timer; higher levels add seeds and pierce.
+  - **Thorn Aura** — a constant damage ring around you.
+- **The spawn director** ramps for the full ten minutes: a steady trickle, **swarm bursts** that
+  wall in from one edge (announced with a banner), **elites** (crowned, tanky, big XP), and two
+  bosses — **BROOD MOTHER** at 5:00 and **SWARM QUEEN** at 9:00, each with a health bar at the top
+  of the screen. Bug health, speed and damage all climb with the clock.
+- **Surviving to 0:00 wins the run** and shows the victory screen. Dying ends it early.
+- Arena keeps its **own high score**, separate from Campaign.
+
+Balance reference: a crude auto-pilot (perfect aim, no dodging, greedy drafting) usually dies
+between 4 and 5:30 and wins about one run in four, so the clock is a real but beatable goal.
 
 ## Project structure
 
@@ -125,6 +161,13 @@ of scope.
 
 ## Tuning
 
-Balance lives entirely in `src/config.ts`: player speed and energy economy, spray damage/range/
-knock-back, per-enemy stats, wave budget curves and pickup rates. Editing a number there and saving
-is enough — the dev server hot-reloads.
+Balance lives in a few dedicated places, all hot-reloaded by the dev server:
+
+- `src/config.ts` — player speed and energy economy, spray damage/range/knock-back, per-enemy
+  stats, campaign wave curves, pickup rates.
+- `src/entities/enemy.ts` — the `VARIANTS` table (elite and boss multipliers).
+- `src/systems/director.ts` — the `ARENA` block: run length, enemy caps, swarm/elite cadence, boss
+  timeline, plus the difficulty ramp in `scaling()`.
+- `src/systems/progression.ts` — the XP curve (`xpForLevel`) and every upgrade's effect and weight.
+- `src/systems/weapons.ts` — the per-level formulas for the three sub-weapons.
+- `src/systems/stats.ts` — starting stats per mode.
