@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Garden Defenders</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --frame: #0b140d;
+      }
+      * { box-sizing: border-box; }
+      html, body {
+        margin: 0;
+        height: 100%;
+        background: radial-gradient(circle at 50% 30%, #16281a 0%, #0a120c 70%, #060a07 100%);
+        overflow: hidden;
+        font-family: ui-monospace, "SFMono-Regular", "Cascadia Mono", Menlo, Consolas, monospace;
+      }
+      #stage {
+        position: fixed;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      canvas#game {
+        display: block;
+        image-rendering: auto;
+        background: #3f7f39;
+        border-radius: 6px;
+        box-shadow: 0 0 0 2px #14240f, 0 18px 60px rgba(0, 0, 0, 0.65);
+        touch-action: none;
+        cursor: crosshair;
+      }
+      #hint {
+        position: fixed;
+        left: 50%;
+        bottom: 6px;
+        transform: translateX(-50%);
+        color: #6f8a6d;
+        font-size: 11px;
+        letter-spacing: 0.08em;
+        pointer-events: none;
+        user-select: none;
+      }
+      @media (max-height: 560px) { #hint { display: none; } }
+    </style>
+  </head>
+  <body>
+    <div id="stage"><canvas id="game" width="1280" height="720"></canvas></div>
+    <div id="hint">WASD / ARROWS move &nbsp;·&nbsp; MOUSE aim &nbsp;·&nbsp; HOLD CLICK / SPACE spray &nbsp;·&nbsp; P pause &nbsp;·&nbsp; M mute</div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
