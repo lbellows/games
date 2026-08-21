@@ -1,0 +1,874 @@
+/* SPUDLORD — dark arcade skin. The stage is a fixed 1280x720 box that ui.js
+   scales with a single transform, so every offset below can be plain pixels
+   and the overlay always lines up with the canvas. */
+
+:root {
+  --bg: #05060b;
+  --floor: #0a0c15;
+  --panel: rgba(14, 18, 33, 0.94);
+  --panel-2: #161c30;
+  --panel-3: #1e2540;
+  --line: rgba(120, 150, 220, 0.22);
+  --line-hot: rgba(120, 150, 220, 0.55);
+  --ink: #e9eefb;
+  --dim: #93a0bd;
+  --gold: #ffb020;
+  --hp: #ff4d5e;
+  --xp: #35e0d0;
+  --good: #5fe08a;
+  --bad: #ff5747;
+
+  /* rarity ladder, used identically on shop cards and weapon slots */
+  --t1: #9fb0c9;
+  --t2: #4da3ff;
+  --t3: #b06bff;
+  --t4: #ff5747;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: Barlow, "Segoe UI", system-ui, sans-serif;
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+#app {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  background:
+    radial-gradient(ellipse at 50% 45%, #131a2e 0%, #07080f 55%, #04050a 100%);
+}
+
+#stage {
+  /* Pinned to the top-left and placed entirely by fitStage()'s transform. Grid
+     centering cannot be used here: the layout box stays 1280x720 regardless of
+     scale, so on a viewport shorter than 720px the browser centered the *un*
+     scaled box and pushed the arena's bottom edge off-screen. */
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 1280px;
+  height: 720px;
+  flex: none;
+  transform-origin: 0 0;
+  border-radius: 14px;
+  overflow: hidden;
+  background: var(--floor);
+  box-shadow:
+    0 0 0 1px rgba(140, 170, 240, 0.16),
+    0 0 90px rgba(60, 100, 200, 0.18),
+    0 40px 120px rgba(0, 0, 0, 0.75);
+}
+
+#view {
+  display: block;
+  width: 1280px;
+  height: 720px;
+}
+
+#ui {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  font-size: 15px;
+}
+
+#ui button,
+#ui .clickable {
+  pointer-events: auto;
+  font-family: inherit;
+}
+
+.hidden {
+  display: none !important;
+}
+
+/* --------------------------------------------------------------------- HUD */
+
+#hud {
+  position: absolute;
+  inset: 0;
+  text-shadow: 0 2px 0 rgba(0, 0, 0, 0.6);
+}
+
+#hud-left {
+  position: absolute;
+  left: 18px;
+  top: 16px;
+  width: 300px;
+  display: grid;
+  gap: 7px;
+}
+
+.meter {
+  display: grid;
+  grid-template-columns: 46px 1fr auto;
+  align-items: center;
+  gap: 9px;
+}
+
+.meter-tag {
+  font-family: "Chakra Petch", sans-serif;
+  font-size: 13px;
+  letter-spacing: 0.1em;
+  color: var(--dim);
+}
+
+.meter-num {
+  font-family: "Chakra Petch", sans-serif;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+  min-width: 58px;
+  text-align: right;
+}
+
+.track {
+  position: relative;
+  height: 14px;
+  border-radius: 8px;
+  background: rgba(3, 5, 12, 0.8);
+  box-shadow: inset 0 0 0 1px var(--line);
+  overflow: hidden;
+}
+
+.track > div {
+  height: 100%;
+  width: 100%;
+  border-radius: 8px 4px 4px 8px;
+  transition: width 0.12s linear;
+}
+
+.track.hp > div {
+  background: linear-gradient(90deg, #8c1f2c, var(--hp) 65%, #ff8a92);
+  box-shadow: 0 0 12px rgba(255, 77, 94, 0.55);
+}
+
+.track.xp {
+  height: 9px;
+}
+
+.track.xp > div {
+  background: linear-gradient(90deg, #0f6b68, var(--xp));
+  box-shadow: 0 0 10px rgba(53, 224, 208, 0.45);
+}
+
+#hud-left.low .track.hp > div {
+  animation: hpflash 0.7s steps(2, end) infinite;
+}
+
+@keyframes hpflash {
+  50% {
+    filter: brightness(1.9);
+  }
+}
+
+#hud-center {
+  position: absolute;
+  left: 50%;
+  top: 10px;
+  transform: translateX(-50%);
+  text-align: center;
+}
+
+#wave-text {
+  font-family: "Chakra Petch", sans-serif;
+  font-size: 15px;
+  letter-spacing: 0.32em;
+  color: var(--dim);
+}
+
+#timer {
+  font-family: "Chakra Petch", sans-serif;
+  font-size: 46px;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+  text-shadow: 0 0 24px rgba(120, 170, 255, 0.35), 0 3px 0 rgba(0, 0, 0, 0.7);
+}
+
+#timer.urgent {
+  color: var(--bad);
+  text-shadow: 0 0 26px rgba(255, 87, 71, 0.7);
+  animation: tick 1s ease-out infinite;
+}
+
+@keyframes tick {
+  0% {
+    transform: scale(1.16);
+  }
+  40% {
+    transform: scale(1);
+  }
+}
+
+#hud-right {
+  position: absolute;
+  right: 18px;
+  top: 16px;
+  display: grid;
+  justify-items: end;
+  gap: 6px;
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: rgba(10, 14, 26, 0.82);
+  box-shadow: inset 0 0 0 1px var(--line);
+  font-family: "Chakra Petch", sans-serif;
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
+}
+
+.pill .ic {
+  font-size: 13px;
+  opacity: 0.9;
+}
+
+.pill.gold {
+  color: var(--gold);
+  box-shadow: inset 0 0 0 1px rgba(255, 176, 32, 0.45);
+}
+
+.pill.big-pill {
+  font-size: 22px;
+  padding: 6px 16px;
+}
+
+#pause-hint {
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  color: rgba(147, 160, 189, 0.55);
+}
+
+#slots {
+  position: absolute;
+  left: 50%;
+  bottom: 12px;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 7px;
+}
+
+.slot {
+  position: relative;
+  width: 116px;
+  padding: 6px 8px 7px;
+  border-radius: 9px;
+  background: rgba(10, 14, 26, 0.82);
+  box-shadow: inset 0 0 0 1px var(--line);
+  border-top: 3px solid var(--t1);
+  font-size: 12px;
+  line-height: 1.25;
+}
+
+.slot .slot-key {
+  position: absolute;
+  top: 5px;
+  right: 7px;
+  font-size: 10px;
+  color: rgba(147, 160, 189, 0.6);
+}
+
+.slot .slot-name {
+  display: block;
+  font-family: "Chakra Petch", sans-serif;
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.slot .slot-sub {
+  display: block;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--dim);
+}
+
+.slot.empty {
+  opacity: 0.4;
+  border-top-color: rgba(159, 176, 201, 0.4);
+}
+
+.tier-1 {
+  border-top-color: var(--t1);
+}
+.tier-2 {
+  border-top-color: var(--t2);
+}
+.tier-3 {
+  border-top-color: var(--t3);
+}
+.tier-4 {
+  border-top-color: var(--t4);
+}
+
+.tier-1 .slot-name,
+.tier-1 .card-name {
+  color: var(--t1);
+}
+.tier-2 .slot-name,
+.tier-2 .card-name {
+  color: var(--t2);
+}
+.tier-3 .slot-name,
+.tier-3 .card-name {
+  color: var(--t3);
+}
+.tier-4 .slot-name,
+.tier-4 .card-name {
+  color: var(--t4);
+}
+
+/* ----------------------------------------------------------------- screens */
+
+.screen {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  /* "safe" keeps the top edge reachable when a panel is taller than the
+     viewport -- plain centering pushes the header off-screen and clips it. */
+  align-items: safe center;
+  justify-items: center;
+  grid-template-rows: minmax(0, 1fr);
+  overflow-y: auto;
+  padding: 14px;
+  background: rgba(4, 6, 12, 0.72);
+  backdrop-filter: blur(3px);
+  pointer-events: auto;
+}
+
+.glowfield {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 22% 28%, rgba(77, 163, 255, 0.16), transparent 45%),
+    radial-gradient(circle at 78% 72%, rgba(176, 107, 255, 0.16), transparent 45%),
+    radial-gradient(circle at 50% 50%, rgba(255, 176, 32, 0.08), transparent 60%);
+}
+
+.panel,
+.title-card {
+  position: relative;
+  background: var(--panel);
+  border-radius: 16px;
+  box-shadow:
+    inset 0 0 0 1px var(--line),
+    0 30px 90px rgba(0, 0, 0, 0.7);
+  padding: 26px 32px;
+}
+
+.title-card {
+  text-align: center;
+  width: 720px;
+  padding: 40px 48px 34px;
+}
+
+.panel.slim {
+  width: min(520px, 100%);
+  text-align: center;
+}
+
+h1 {
+  margin: 4px 0 6px;
+  font-family: "Chakra Petch", sans-serif;
+  font-size: 92px;
+  line-height: 0.92;
+  letter-spacing: 0.06em;
+  background: linear-gradient(180deg, #fff2cf 10%, var(--gold) 55%, #b96a12 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 6px 0 rgba(0, 0, 0, 0.55));
+}
+
+h2 {
+  margin: 0 0 14px;
+  font-family: "Chakra Petch", sans-serif;
+  font-size: 30px;
+  letter-spacing: 0.14em;
+}
+
+h2.bad {
+  color: var(--bad);
+}
+
+h2.good {
+  color: var(--gold);
+}
+
+h3 {
+  margin: 0 0 8px;
+  font-family: "Chakra Petch", sans-serif;
+  font-size: 14px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--dim);
+}
+
+h3 .sub {
+  float: right;
+  letter-spacing: 0.06em;
+  color: rgba(147, 160, 189, 0.6);
+}
+
+.eyebrow {
+  margin: 0;
+  font-size: 11px;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: rgba(147, 160, 189, 0.75);
+}
+
+.tag {
+  max-width: 470px;
+  margin: 14px auto 22px;
+  color: var(--dim);
+  line-height: 1.5;
+}
+
+.fine {
+  margin: 16px 0 0;
+  font-size: 12px;
+  color: rgba(147, 160, 189, 0.7);
+}
+
+.keys {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px 18px;
+  margin-top: 22px;
+  font-size: 12px;
+  color: var(--dim);
+}
+
+.keys div {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+kbd {
+  display: inline-block;
+  min-width: 18px;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: rgba(6, 9, 18, 0.9);
+  box-shadow: inset 0 0 0 1px var(--line);
+  font-family: "Chakra Petch", sans-serif;
+  font-size: 11px;
+  text-align: center;
+  color: var(--ink);
+}
+
+/* ----------------------------------------------------------------- buttons */
+
+.btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 18px;
+  border: 0;
+  border-radius: 10px;
+  background: var(--panel-2);
+  box-shadow: inset 0 0 0 1px var(--line), 0 3px 0 rgba(0, 0, 0, 0.45);
+  color: var(--ink);
+  font-family: "Chakra Petch", sans-serif;
+  font-size: 15px;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+  transition: transform 0.08s ease, background 0.12s ease, box-shadow 0.12s ease;
+}
+
+.btn:hover {
+  background: var(--panel-3);
+  box-shadow: inset 0 0 0 1px var(--line-hot), 0 3px 0 rgba(0, 0, 0, 0.45);
+}
+
+.btn:active {
+  transform: translateY(2px);
+  box-shadow: inset 0 0 0 1px var(--line-hot), 0 1px 0 rgba(0, 0, 0, 0.45);
+}
+
+.btn.primary {
+  background: linear-gradient(180deg, #ffc954, var(--gold));
+  color: #2a1a02;
+  box-shadow: 0 4px 0 #8f5a06, 0 12px 28px rgba(255, 176, 32, 0.25);
+}
+
+.btn.primary:hover {
+  filter: brightness(1.08);
+  box-shadow: 0 4px 0 #8f5a06, 0 14px 34px rgba(255, 176, 32, 0.4);
+}
+
+.btn.primary kbd {
+  background: rgba(0, 0, 0, 0.18);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.25);
+  color: #2a1a02;
+}
+
+.btn.big {
+  padding: 13px 26px;
+  font-size: 19px;
+}
+
+.btn:disabled,
+.btn.off {
+  opacity: 0.42;
+  cursor: not-allowed;
+  filter: grayscale(0.5);
+}
+
+.btn .cost {
+  color: var(--gold);
+  font-variant-numeric: tabular-nums;
+}
+
+.btn.primary .cost {
+  color: #2a1a02;
+}
+
+/* ------------------------------------------------------------------- cards */
+
+.cards {
+  display: grid;
+  gap: 10px;
+}
+
+.cards.three {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.cards.four {
+  grid-template-columns: repeat(4, 1fr);
+}
+
+.card {
+  position: relative;
+  display: grid;
+  align-content: start;
+  gap: 6px;
+  padding: 12px 13px 42px;
+  min-height: 150px;
+  border: 0;
+  border-top: 3px solid var(--t1);
+  border-radius: 12px;
+  background: linear-gradient(180deg, var(--panel-2), #0d1120);
+  box-shadow: inset 0 0 0 1px var(--line), 0 8px 22px rgba(0, 0, 0, 0.5);
+  color: var(--ink);
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: transform 0.1s ease, box-shadow 0.12s ease;
+}
+
+.card:hover,
+.card.sel {
+  transform: translateY(-3px);
+  box-shadow: inset 0 0 0 1px var(--line-hot), 0 14px 30px rgba(0, 0, 0, 0.6);
+}
+
+.card.sel::after {
+  content: "";
+  position: absolute;
+  inset: -3px;
+  border-radius: 13px;
+  box-shadow: 0 0 0 2px var(--gold), 0 0 26px rgba(255, 176, 32, 0.4);
+  pointer-events: none;
+}
+
+.card-key {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  font-family: "Chakra Petch", sans-serif;
+  font-size: 11px;
+  color: rgba(147, 160, 189, 0.55);
+}
+
+.card-kind {
+  font-size: 10px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: rgba(147, 160, 189, 0.75);
+}
+
+.card-name {
+  margin: 0;
+  font-family: "Chakra Petch", sans-serif;
+  font-size: 20px;
+  line-height: 1.1;
+}
+
+.card-mods {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--ink);
+}
+
+.card-mods .up {
+  color: var(--good);
+}
+
+.card-mods .down {
+  color: var(--bad);
+}
+
+.card-desc {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.4;
+  color: var(--dim);
+  font-style: italic;
+}
+
+.card-price {
+  position: absolute;
+  left: 14px;
+  bottom: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 11px;
+  border-radius: 999px;
+  background: rgba(255, 176, 32, 0.12);
+  box-shadow: inset 0 0 0 1px rgba(255, 176, 32, 0.4);
+  color: var(--gold);
+  font-family: "Chakra Petch", sans-serif;
+  font-variant-numeric: tabular-nums;
+}
+
+.card.poor {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.card.poor .card-price {
+  color: var(--bad);
+  background: rgba(255, 87, 71, 0.1);
+  box-shadow: inset 0 0 0 1px rgba(255, 87, 71, 0.45);
+}
+
+.card.sold {
+  cursor: default;
+}
+
+/* Dim the contents, not the stamp — a sold card still has to be readable. */
+.card.sold > * {
+  opacity: 0.22;
+}
+
+.card.sold::before {
+  content: "SOLD";
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-family: "Chakra Petch", sans-serif;
+  font-size: 26px;
+  letter-spacing: 0.2em;
+  color: rgba(233, 238, 251, 0.7);
+  transform: rotate(-8deg);
+}
+
+/* -------------------------------------------------------------- level up */
+
+.panel.levelup {
+  width: min(780px, 100%);
+  max-height: 692px;
+  overflow-y: auto;
+  text-align: center;
+}
+
+.panel.levelup .cards {
+  margin-top: 6px;
+}
+
+.panel.levelup .card {
+  min-height: 150px;
+  padding-bottom: 14px;
+  text-align: center;
+  justify-items: center;
+}
+
+.card-value {
+  font-family: "Chakra Petch", sans-serif;
+  font-size: 30px;
+  color: var(--gold);
+}
+
+/* ------------------------------------------------------------------- shop */
+
+.panel.shop {
+  /* Cap to the stage (not the viewport -- #stage is a fixed 1280x720 box that
+     JS scales to fit) so the Next-wave button can never fall below the fold. */
+  width: min(1180px, 100%);
+  max-height: 692px; /* 720px stage less .screen's 14px padding */
+  overflow-y: auto;
+  padding: 16px 22px 14px;
+}
+
+.shop-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.shop-head h2 {
+  margin: 2px 0 0;
+}
+
+.shop-head-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.shop-lower {
+  display: grid;
+  grid-template-columns: 340px 1fr;
+  gap: 18px;
+  margin-top: 12px;
+}
+
+.slot-list {
+  display: grid;
+  gap: 5px;
+}
+
+.wslot {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 10px;
+  border-radius: 9px;
+  border-left: 3px solid var(--t1);
+  background: rgba(10, 14, 26, 0.7);
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+
+.wslot.empty {
+  opacity: 0.35;
+  border-left-color: rgba(159, 176, 201, 0.4);
+}
+
+.wslot .slot-name {
+  font-family: "Chakra Petch", sans-serif;
+  font-size: 14px;
+}
+
+.wslot .slot-sub {
+  font-size: 10.5px;
+  color: var(--dim);
+  letter-spacing: 0.04em;
+}
+
+.wslot .btn {
+  padding: 4px 10px;
+  font-size: 12px;
+}
+
+.stat-sheet {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px 18px;
+}
+
+.stat-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+  padding: 2px 0;
+  border-bottom: 1px solid rgba(120, 150, 220, 0.1);
+  font-size: 13px;
+}
+
+.stat-row .sname {
+  color: var(--dim);
+}
+
+.stat-row .sval {
+  font-family: "Chakra Petch", sans-serif;
+  font-variant-numeric: tabular-nums;
+}
+
+.stat-row.buffed .sval {
+  color: var(--good);
+}
+
+.stat-row.nerfed .sval {
+  color: var(--bad);
+}
+
+.shop-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 10px;
+}
+
+.shop-foot .fine {
+  margin: 0;
+}
+
+/* ------------------------------------------------------------- run stats */
+
+.runstats {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 22px;
+  margin: 18px 0 22px;
+}
+
+.runstats div {
+  display: grid;
+  gap: 2px;
+  min-width: 78px;
+}
+
+.runstats b {
+  font-family: "Chakra Petch", sans-serif;
+  font-size: 26px;
+  color: var(--gold);
+}
+
+.runstats span {
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--dim);
+}
+
+/* Below the stage's natural size ui.js scales it down; when the viewport is
+   very narrow the panels would still crowd, so tighten the densest ones. */
+@media (max-width: 900px), (max-height: 560px) {
+  .panel.shop {
+    padding: 14px 16px 12px;
+  }
+  .stat-sheet {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}

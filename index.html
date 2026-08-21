@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>SPUDLORD — arena survival</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Chakra+Petch:wght@600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ctext y='26' font-size='26'%3E%F0%9F%A5%94%3C/text%3E%3C/svg%3E"
+    />
+    <link rel="stylesheet" href="css/game.css" />
+  </head>
+  <body>
+    <div id="app">
+      <div id="stage">
+        <canvas id="view" width="1280" height="720"></canvas>
+
+        <div id="ui">
+          <!-- ---------------------------------------------------------- HUD -->
+          <div id="hud" class="hidden">
+            <div id="hud-left">
+              <div class="meter">
+                <span class="meter-tag">HP</span>
+                <div class="track hp"><div id="hp-fill"></div></div>
+                <span id="hp-text" class="meter-num">10/10</span>
+              </div>
+              <div class="meter">
+                <span class="meter-tag" id="lvl-text">LV 1</span>
+                <div class="track xp"><div id="xp-fill"></div></div>
+                <span id="xp-text" class="meter-num">0/10</span>
+              </div>
+            </div>
+
+            <div id="hud-center">
+              <div id="wave-text">WAVE 1</div>
+              <div id="timer">20</div>
+            </div>
+
+            <div id="hud-right">
+              <div class="pill gold"><span class="ic">◆</span><span id="mats-text">0</span></div>
+              <div class="pill"><span class="ic">☠</span><span id="kills-text">0</span></div>
+              <div id="pause-hint">ESC pause</div>
+            </div>
+
+            <div id="slots"></div>
+          </div>
+
+          <!-- -------------------------------------------------------- title -->
+          <section id="screen-title" class="screen">
+            <div class="glowfield"></div>
+            <div class="title-card">
+              <p class="eyebrow">arena survival · 20 waves</p>
+              <h1>SPUDLORD</h1>
+              <p class="tag">
+                You do not aim. You do not reload. You run, you dodge, you buy
+                worse ideas with the money the dead leave behind.
+              </p>
+              <button id="btn-start" class="btn primary big">Enter the arena</button>
+              <div class="keys">
+                <div><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd><span>move</span></div>
+                <div><kbd>Space</kbd><span>confirm</span></div>
+                <div><kbd>R</kbd><span>reroll shop</span></div>
+                <div><kbd>1</kbd>–<kbd>4</kbd><span>buy</span></div>
+                <div><kbd>Esc</kbd><span>pause</span></div>
+              </div>
+              <p class="fine">Weapons fire themselves at whatever is closest. Stay alive.</p>
+            </div>
+          </section>
+
+          <!-- ----------------------------------------------------- level up -->
+          <section id="screen-levelup" class="screen hidden">
+            <div class="panel levelup">
+              <p class="eyebrow">you have grown</p>
+              <h2 id="levelup-title">LEVEL 2</h2>
+              <div id="upgrade-cards" class="cards three"></div>
+              <p class="fine"><kbd>1</kbd><kbd>2</kbd><kbd>3</kbd> pick · <kbd>Space</kbd> confirm</p>
+            </div>
+          </section>
+
+          <!-- --------------------------------------------------------- shop -->
+          <section id="screen-shop" class="screen hidden">
+            <div class="panel shop">
+              <header class="shop-head">
+                <div>
+                  <p class="eyebrow">between waves</p>
+                  <h2 id="shop-title">SHOP · WAVE 2</h2>
+                </div>
+                <div class="shop-head-right">
+                  <div class="pill gold big-pill">
+                    <span class="ic">◆</span><span id="shop-mats">0</span>
+                  </div>
+                  <button id="btn-reroll" class="btn">
+                    Reroll <span class="cost" id="reroll-cost">5 ◆</span> <kbd>R</kbd>
+                  </button>
+                </div>
+              </header>
+
+              <div id="shop-offers" class="cards four"></div>
+
+              <div class="shop-lower">
+                <div class="col">
+                  <h3>Arsenal <span class="sub" id="slot-count">0 / 6</span></h3>
+                  <div id="shop-slots" class="slot-list"></div>
+                </div>
+                <div class="col">
+                  <h3>Stats</h3>
+                  <div id="stat-sheet" class="stat-sheet"></div>
+                </div>
+              </div>
+
+              <footer class="shop-foot">
+                <p class="fine" id="shop-hint">Buy with <kbd>1</kbd>–<kbd>4</kbd>, then go.</p>
+                <button id="btn-next" class="btn primary big">Next wave <kbd>Space</kbd></button>
+              </footer>
+            </div>
+          </section>
+
+          <!-- -------------------------------------------------------- pause -->
+          <section id="screen-pause" class="screen hidden">
+            <div class="panel slim">
+              <h2>PAUSED</h2>
+              <p class="tag">The horde is holding still. It will not last.</p>
+              <button id="btn-resume" class="btn primary big">Resume <kbd>Esc</kbd></button>
+            </div>
+          </section>
+
+          <!-- ---------------------------------------------------- game over -->
+          <section id="screen-over" class="screen hidden">
+            <div class="panel slim">
+              <p class="eyebrow">the arena keeps the rest</p>
+              <h2 class="bad">YOU DIED</h2>
+              <div id="over-stats" class="runstats"></div>
+              <button id="btn-restart" class="btn primary big">Run it back <kbd>Space</kbd></button>
+            </div>
+          </section>
+
+          <!-- ------------------------------------------------------ victory -->
+          <section id="screen-win" class="screen hidden">
+            <div class="panel slim">
+              <p class="eyebrow">twenty waves, no notes</p>
+              <h2 class="good">SPUDLORD</h2>
+              <div id="win-stats" class="runstats"></div>
+              <button id="btn-restart-win" class="btn primary big">Again <kbd>Space</kbd></button>
+            </div>
+          </section>
+        </div>
+      </div>
+    </div>
+    <script type="module" src="js/main.js"></script>
+  </body>
+</html>
