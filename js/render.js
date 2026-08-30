@@ -1,8 +1,7 @@
-// Canvas renderer. No sprite assets — every pixel is a primitive.
-// Cost control: the static arena backdrop, the player body gradient and every
-// glow sprite are baked once in initRender; per-frame work is batched into one
-// path fill per (shape, color) group so 300 entities cost a few dozen draw
-// calls instead of a few hundred save/restore pairs.
+// Canvas renderer. Enemies, bullets and FX stay primitives; the player is the
+// one sprite (art/player.png). Cost control: the static arena backdrop, the
+// fallback player gradient and every glow sprite are baked once in initRender;
+// per-frame work is batched into one path fill per (shape, color) group.
 
 import { ARENA, TAU, clamp, compact } from "./core.js";
 
@@ -15,6 +14,7 @@ let ctx = null;
 let dpr = 1;
 let floorImg = null;
 let playerBody = null;
+let playerSprite = null;
 let hurtGrad = null;
 let vignette = null;
 let time = 0;
@@ -216,8 +216,15 @@ export function initRender(canvas) {
   ctx.lineCap = "round";
   floorImg = bakeFloor();
   bakeGradients();
+  loadPlayerSprite();
   lastNow = performance.now() / 1000;
   return ctx;
+}
+
+function loadPlayerSprite() {
+  const img = new Image();
+  img.onload = () => { playerSprite = img; };
+  img.src = new URL("../art/player.png", import.meta.url).href;
 }
 
 /* ------------------------------------------------------------- fx bookkeeping */
@@ -690,29 +697,38 @@ function drawPlayer(G, a) {
 
   ctx.fillStyle = "rgba(0,0,0,0.35)";
   ctx.beginPath();
-  ctx.ellipse(x, y + p.r * 0.85, p.r * 0.95, p.r * 0.42, 0, 0, TAU);
+  ctx.ellipse(x, y + p.r * 0.95, p.r * 1.05, p.r * 0.42, 0, 0, TAU);
   ctx.fill();
 
   const flick = p.iframes > 0 && ((p.iframes * 26) | 0) % 2 === 0;
+  const bob = Math.sin(time * 7) * 1.4;
+  ctx.save();
+  ctx.translate(x, y + bob);
+  ctx.globalAlpha = flick ? 0.4 : 1;
+  if (playerSprite && playerSprite.naturalWidth) {
+    // Billboard: the face stays readable. Facing is the aim pip below.
+    const s = p.r * 2.55;
+    ctx.drawImage(playerSprite, -s, -s * 1.02, s * 2, s * 2);
+  } else {
+    ctx.beginPath();
+    ctx.arc(0, 0, p.r, 0, TAU);
+    ctx.fillStyle = playerBody;
+    ctx.fill();
+    ctx.lineWidth = 2.5;
+    ctx.strokeStyle = "#dff1ff";
+    ctx.stroke();
+  }
+  ctx.restore();
+
+  const f = p.facing || 0;
   ctx.save();
   ctx.translate(x, y);
-  ctx.globalAlpha = flick ? 0.4 : 1;
-  ctx.beginPath();
-  ctx.arc(0, 0, p.r, 0, TAU);
-  ctx.fillStyle = playerBody;
-  ctx.fill();
-  ctx.lineWidth = 2.5;
-  ctx.strokeStyle = "#dff1ff";
-  ctx.stroke();
-
-  // Aim nub: shows which way the auto-fire is facing.
-  const f = p.facing || 0;
   ctx.rotate(f);
-  ctx.fillStyle = "#0d1220";
+  ctx.fillStyle = "rgba(13,18,32,0.9)";
   ctx.beginPath();
-  ctx.moveTo(p.r * 0.3, -p.r * 0.42);
-  ctx.lineTo(p.r * 1.28, 0);
-  ctx.lineTo(p.r * 0.3, p.r * 0.42);
+  ctx.moveTo(p.r * 1.35, -3.6);
+  ctx.lineTo(p.r * 1.78, 0);
+  ctx.lineTo(p.r * 1.35, 3.6);
   ctx.closePath();
   ctx.fill();
   ctx.restore();
@@ -720,7 +736,6 @@ function drawPlayer(G, a) {
 
   const hpFrac = G.stats && G.stats.maxHp ? p.hp / G.stats.maxHp : 1;
   if (hpFrac <= 0.34) {
-    // Danger halo instead of a HUD-only warning, so it reads mid-fight.
     const pulse = 0.35 + Math.sin(time * 9) * 0.25;
     ctx.globalCompositeOperation = "lighter";
     drawGlow("#ff4d5e", x, y, p.r * 4.5, pulse);

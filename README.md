@@ -1,8 +1,9 @@
 # brotato-clone
 
 A Brotato-style arena survival roguelite that runs in the browser. Vanilla ES
-modules and a 2D canvas — **no dependencies, no build step, no sprite assets**.
-Everything you see is drawn with canvas primitives.
+modules and a 2D canvas — **no dependencies, no build step**. The player is one
+PNG sprite; shop, upgrade and weapon icons are inline SVG. Everything else is
+drawn with canvas primitives.
 
 You never aim. Your weapons pick their own targets and fire on cooldown; your
 only job is to move, survive the wave, and spend the materials you collect.
@@ -55,6 +56,7 @@ js/enemies.js      enemy roster + AI                     js/waves.js     spawn d
 js/weapons.js      weapon roster + auto-targeting        js/projectiles.js  bullets, arcs, areas
 js/items.js        item roster                           js/shop.js      offers, rerolls, economy
 js/render.js       all canvas drawing + effects          js/ui.js        DOM overlay, screens
+js/icons.js        SVG shop/upgrade/weapon glyphs        art/player.png  the spud
 ```
 
 The simulation runs at a fixed 60Hz step with the renderer interpolating, so

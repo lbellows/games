@@ -8,6 +8,7 @@ import { BASE_STATS, STAT_LABELS, PERCENT_STATS, xpForLevel } from "./stats.js";
 import { shopState } from "./shop.js";
 import { weaponDps } from "./weapons.js";
 import { TOTAL_WAVES } from "./waves.js";
+import { iconSVG } from "./icons.js";
 
 const SLOTS = 6;
 
@@ -71,6 +72,14 @@ function setTier(node, tier) {
     node._t = t;
     node.classList.add("tier-" + t);
   }
+}
+
+function setIcon(node, id) {
+  if (!node) return;
+  const key = id || "";
+  if (node._icon === key) return;
+  node._icon = key;
+  node.innerHTML = key ? iconSVG(key) : "";
 }
 
 /* --------------------------------------------------------- offer/item shape */
@@ -165,7 +174,9 @@ function buildHudSlots() {
     d._t = 1;
     d.innerHTML =
       '<span class="slot-key">' + (i + 1) + '</span>' +
-      '<span class="slot-name">—</span><span class="slot-sub">empty</span>';
+      '<span class="slot-icon"></span>' +
+      '<div class="slot-copy"><span class="slot-name">—</span><span class="slot-sub">empty</span></div>';
+    d._icon = d.querySelector(".slot-icon");
     d._name = d.querySelector(".slot-name");
     d._sub = d.querySelector(".slot-sub");
     frag.appendChild(d);
@@ -181,8 +192,10 @@ function buildShopSlots() {
     d.className = "wslot empty tier-1";
     d._t = 1;
     d.innerHTML =
+      '<span class="slot-icon"></span>' +
       '<div><span class="slot-name">—</span><br /><span class="slot-sub">empty slot</span></div>' +
       '<button class="btn" type="button">Sell</button>';
+    d._icon = d.querySelector(".slot-icon");
     d._name = d.querySelector(".slot-name");
     d._sub = d.querySelector(".slot-sub");
     d._btn = d.querySelector("button");
@@ -198,7 +211,9 @@ function buildStatSheet() {
   for (const key in STAT_LABELS) {
     const row = document.createElement("div");
     row.className = "stat-row";
-    row.innerHTML = '<span class="sname">' + STAT_LABELS[key] + '</span><span class="sval">0</span>';
+    row.innerHTML =
+      '<span class="sicon">' + iconSVG(key) + '</span>' +
+      '<span class="sname">' + STAT_LABELS[key] + '</span><span class="sval">0</span>';
     row._val = row.querySelector(".sval");
     frag.appendChild(row);
     statRows.set(key, row);
@@ -213,11 +228,13 @@ function makeCard(index, onPick, withPrice) {
   b._t = 1;
   b.innerHTML =
     '<span class="card-key">' + (index + 1) + '</span>' +
+    '<span class="card-icon"></span>' +
     '<span class="card-kind"></span>' +
     '<h3 class="card-name"></h3>' +
     (withPrice ? '<p class="card-mods"></p>' : '<div class="card-value"></div>') +
     '<p class="card-desc"></p>' +
     (withPrice ? '<span class="card-price"></span>' : "");
+  b._icon = b.querySelector(".card-icon");
   b._kind = b.querySelector(".card-kind");
   b._name = b.querySelector(".card-name");
   b._mods = b.querySelector(".card-mods") || b.querySelector(".card-value");
@@ -460,6 +477,7 @@ function syncSlots(G, nodes, shop) {
     if (!w) {
       setClass(node, "empty", true);
       setTier(node, 1);
+      setIcon(node._icon, "");
       setText(node._name, "—");
       setText(node._sub, shop ? "empty slot" : "empty");
       if (node._btn) show(node._btn, false);
@@ -469,6 +487,7 @@ function syncSlots(G, nodes, shop) {
     const tier = w.tier || d.tier || 1;
     setClass(node, "empty", false);
     setTier(node, tier);
+    setIcon(node._icon, d.id || "");
     setText(node._name, d.name || d.id || "weapon");
     let sub = (d.type || "weapon") + " · T" + tier;
     if (shop) {
@@ -502,6 +521,7 @@ function syncShop(G) {
       const card = offerCards[i];
       const o = describeOffer(offers[i]);
       setTier(card, o.tier);
+      setIcon(card._icon, o.def.id || "");
       setText(card._kind, o.kind + " · T" + o.tier);
       setText(card._name, o.name);
       setHTML(card._mods, o.weapon ? weaponLine(o.def) : modsLine(o.mods || {}));
@@ -554,8 +574,10 @@ function syncLevelUp(G) {
   choiceSig = sig;
   for (let i = 0; i < choices.length; i++) {
     const card = choiceCards[i];
-    const c = describeChoice(choices[i]);
+    const raw = choices[i];
+    const c = describeChoice(raw);
     setTier(card, c.tier);
+    setIcon(card._icon, raw.stat || raw.key || "");
     setText(card._kind, "UPGRADE");
     setText(card._name, c.name);
     setHTML(card._mods, c.value);
