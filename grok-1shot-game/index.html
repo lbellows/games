@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Bloomrot — a gardening roguelike</title>
+    <link rel="icon" href="assets/sprites/sunroot.png" type="image/png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Nunito:wght@500;700;800&family=Pixelify+Sans:wght@500;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="css/game.css" />
+  </head>
+  <body>
+    <div id="app">
+      <canvas id="view"></canvas>
+
+      <div id="hud" hidden>
+        <div id="top-left">
+          <div id="floor-tag">Kitchen Garden</div>
+          <div id="turn-tag">turn 0</div>
+        </div>
+        <div id="top-stats">
+          <div class="pill" title="Gold"><span class="ic">◉</span><span id="stat-gold">0</span></div>
+          <div class="pill" title="Water"><span class="ic">💧</span><span id="stat-water">3/3</span></div>
+          <div class="pill" title="Compost"><span class="ic">▣</span><span id="stat-compost">0</span></div>
+        </div>
+        <div id="bars">
+          <div class="bar">
+            <span class="bl">Vitality</span>
+            <div class="track hp"><div id="hp-fill"></div></div>
+            <span id="hp-text">24/24</span>
+          </div>
+          <div class="bar">
+            <span class="bl">Hunger</span>
+            <div class="track hg"><div id="hunger-fill"></div></div>
+            <span id="hunger-text">72</span>
+          </div>
+        </div>
+        <div id="seeds"></div>
+        <div id="log"></div>
+        <div id="look"></div>
+        <div id="hint">WASD move · F plant · G harvest · T water · R compost · E eat seed · &gt; stairs · ? help</div>
+      </div>
+
+      <div id="overlay">
+        <section id="screen-boot" class="screen">
+          <p id="boot-msg" class="flavor">Turning the soil…</p>
+        </section>
+
+        <section id="screen-title" class="screen hidden">
+          <div class="veil"></div>
+          <div class="title-card">
+            <p class="eyebrow">the buried conservatory</p>
+            <h1>Bloomrot</h1>
+            <p class="tag">A gardening roguelike. Plant. Harvest. The garden eats back.</p>
+            <div class="btns">
+              <button id="btn-new" class="btn primary">Tend a plot</button>
+              <button id="btn-help" class="btn">Almanac</button>
+              <button id="btn-scores" class="btn">Pressings</button>
+              <button id="btn-mute" class="btn ghost">Sound on</button>
+            </div>
+            <p class="fine">Permadeath · eight floors · the Heartroot waits</p>
+          </div>
+        </section>
+
+        <section id="screen-help" class="screen hidden">
+          <div class="panel almanac">
+            <h2>Almanac</h2>
+            <div class="cols">
+              <div>
+                <h3>The plot</h3>
+                <p>
+                  You fell through a trapdoor into a living glasshouse. Eight floors down, the Heartroot
+                  pulses. You will not be rescued. You may still garden.
+                </p>
+                <h3>Hands</h3>
+                <ul>
+                  <li><kbd>WASD</kbd> / arrows — step (bump to swat)</li>
+                  <li><kbd>1–5</kbd> — choose a seed</li>
+                  <li><kbd>F</kbd> — plant in the last step’s direction</li>
+                  <li><kbd>G</kbd> — harvest a ripe plant beside you</li>
+                  <li><kbd>T</kbd> — water adjacent seedlings</li>
+                  <li><kbd>R</kbd> — compost (from slugs) onto a plant you face</li>
+                  <li><kbd>E</kbd> — eat the selected seed (poor supper)</li>
+                  <li><kbd>&gt;</kbd> / Enter — descend stairs you stand on</li>
+                  <li><kbd>.</kbd> — wait a turn · click to step toward a tile</li>
+                </ul>
+              </div>
+              <div>
+                <h3>Crops</h3>
+                <ul>
+                  <li><b>Sunroot</b> — food and blood.</li>
+                  <li><b>Thornvine</b> — a turret. Hurts pests each turn.</li>
+                  <li><b>Glowcap</b> — lights the dark. Harvest a lantern.</li>
+                  <li><b>Coinleaf</b> — money that photosynthesizes.</li>
+                  <li><b>Nightshade</b> — harvest to poison the neighborhood.</li>
+                </ul>
+                <h3>Pests</h3>
+                <p>
+                  Slugs eat crops and make compost. Aphids rush. Blight moths sicken soil and blood.
+                  Topiary knights are slow hedges with opinions. Plant first. Then fight.
+                </p>
+              </div>
+            </div>
+            <button id="btn-help-back" class="btn primary">Close almanac</button>
+          </div>
+        </section>
+
+        <section id="screen-scores" class="screen hidden">
+          <div class="panel">
+            <h2>Pressings</h2>
+            <div id="score-list"></div>
+            <button id="btn-scores-back" class="btn primary">Back</button>
+          </div>
+        </section>
+
+        <section id="screen-pause" class="screen hidden">
+          <div class="panel slim">
+            <h2>Paused</h2>
+            <p class="flavor">The moths hover, politely.</p>
+            <div class="btns">
+              <button id="btn-resume" class="btn primary">Keep tending</button>
+              <button id="btn-abandon" class="btn">Abandon plot</button>
+            </div>
+          </div>
+        </section>
+
+        <section id="screen-shop" class="screen hidden">
+          <div class="panel slim">
+            <h2>Seed stall</h2>
+            <p class="flavor">A crate. A slate. A sleeper underneath who will not be woken.</p>
+            <p id="shop-gold" class="goldline">0 coins</p>
+            <div id="shop-list"></div>
+            <button id="btn-shop-close" class="btn primary">Step back</button>
+          </div>
+        </section>
+
+        <section id="screen-end" class="screen hidden">
+          <div class="panel slim">
+            <h2 id="end-title">Composted</h2>
+            <p id="end-copy" class="flavor"></p>
+            <div id="end-stats" class="stats"></div>
+            <div class="btns">
+              <button id="btn-again" class="btn primary">Another plot</button>
+              <button id="btn-title" class="btn">Title</button>
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
+    <script type="module" src="js/main.js"></script>
+  </body>
+</html>
