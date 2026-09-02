@@ -108,3 +108,164 @@ export function rollDamage(base, type, stats, rng) {
 export function xpForLevel(level) {
   return Math.round(6 + level * level * 1.4 + level * 4);
 }
+
+function n1(v) {
+  const r = Math.round(v * 10) / 10;
+  return Number.isInteger(r) ? String(r) : r.toFixed(1);
+}
+
+/**
+ * Hover copy for a stat: what it does, the formula, and the current numbers
+ * plugged in. `wave` is optional (luck's shop-tier example).
+ */
+export function describeStat(key, stats, wave) {
+  const s = stats || BASE_STATS;
+  const v = s[key] !== undefined ? s[key] : 0;
+  const label = STAT_LABELS[key] || key;
+  const title = label + "  " + (PERCENT_STATS.has(key) ? n1(v) + "%" : n1(v));
+  const w = wave || 1;
+
+  switch (key) {
+    case "maxHp":
+      return {
+        title,
+        blurb: "Your hit-point pool. A hit that drops this to 0 ends the run.",
+        formula: "HP bar = current / Max HP",
+        math: "Each level after 1 also adds +3 Max HP (already included).",
+      };
+    case "hpRegen":
+      return {
+        title,
+        blurb: "Restores HP over time. Fractions bank until they add up to 1.",
+        formula: "+Regen HP per second",
+        math: v > 0
+          ? "At " + n1(v) + "/s you gain 1 HP every " + n1(1 / v) + "s."
+          : "No regeneration right now.",
+      };
+    case "lifeSteal":
+      return {
+        title,
+        blurb: "Chance per weapon hit to heal 1 HP — not a percent of damage.",
+        formula: "P(heal 1) = Life Steal% per hit",
+        math: v > 0
+          ? n1(v) + "% → about 1 HP every " + n1(100 / v) + " hits."
+          : "Hits never heal right now.",
+      };
+    case "damage":
+      return {
+        title,
+        blurb: "Percent added to every weapon, before melee/ranged bonuses.",
+        formula: "hit = base × (1 + Damage% / 100)",
+        math: "Current ×" + n1(1 + v / 100) + " on all weapons"
+          + (s.meleeDamage || s.rangedDamage
+            ? ". Type bonuses stack on top."
+            : "."),
+      };
+    case "meleeDamage": {
+      const pct = s.damage + v;
+      return {
+        title,
+        blurb: "Added only to melee weapons, stacking with Damage%.",
+        formula: "melee hit = base × (1 + (Damage + Melee)% / 100)",
+        math: "Damage " + n1(s.damage) + "% + Melee " + n1(v) + "% → ×" + n1(1 + pct / 100) + ".",
+      };
+    }
+    case "rangedDamage": {
+      const pct = s.damage + v;
+      return {
+        title,
+        blurb: "Added only to ranged weapons, stacking with Damage%.",
+        formula: "ranged hit = base × (1 + (Damage + Ranged)% / 100)",
+        math: "Damage " + n1(s.damage) + "% + Ranged " + n1(v) + "% → ×" + n1(1 + pct / 100) + ".",
+      };
+    }
+    case "attackSpeed":
+      return {
+        title,
+        blurb: "Shortens every weapon's cooldown.",
+        formula: "cooldown = base / (1 + Attack Speed% / 100)",
+        math: v === 0
+          ? "Cooldowns are currently at their base."
+          : n1(v) + "% → weapons fire ×" + n1(1 + v / 100) + " as often.",
+      };
+    case "critChance":
+      return {
+        title,
+        blurb: "Chance for a hit to deal double damage. Capped at 100%.",
+        formula: "expected hit ≈ normal × (1 + Crit% / 100)",
+        math: n1(v) + "% crit → +" + n1(v) + "% average damage"
+          + (v >= 100 ? " (every hit crits)." : "."),
+      };
+    case "range":
+      return {
+        title,
+        blurb: "Percent added to every weapon's reach.",
+        formula: "reach = base × (1 + Range% / 100)",
+        math: v === 0
+          ? "Weapons are at their listed range."
+          : n1(v) + "% → a 390 pistol reaches " + Math.round(390 * (1 + v / 100)) + ".",
+      };
+    case "armor": {
+      const raw = 20;
+      const taken = applyArmor(raw, v);
+      const pct = Math.round((1 - taken / raw) * 100);
+      return {
+        title,
+        blurb: "Cuts incoming damage with diminishing returns. Hits always deal at least 1.",
+        formula: v >= 0
+          ? "taken = max(1, round(raw × 15 / (Armor + 15)))"
+          : "taken = max(1, round(raw × (1 + 0.02 × |Armor|)))",
+        math: v === 0
+          ? "0 armor: hits land for full damage (minimum 1)."
+          : n1(v) + " armor: " + raw + " raw → " + taken + " taken ("
+            + (pct >= 0 ? "−" + pct : "+" + (-pct)) + "%).",
+      };
+    }
+    case "dodge":
+      return {
+        title,
+        blurb: "Chance to ignore a hit entirely. Hard-capped at 60%.",
+        formula: "P(ignore) = min(Dodge%, 60%)",
+        math: n1(v) + "% → " + n1(v) + " in 100 hits miss you.",
+      };
+    case "speed": {
+      const px = moveSpeed(s);
+      return {
+        title,
+        blurb: "Percent bonus to movement speed.",
+        formula: "speed = " + PLAYER_BASE_SPEED + " × (1 + Speed% / 100) px/s",
+        math: n1(v) + "% → " + Math.round(px) + " px/s.",
+      };
+    }
+    case "luck": {
+      const lucky = 1 + clamp(v, -50, 300) / 100;
+      return {
+        title,
+        blurb: "Improves shop rarity. Higher tiers get a bigger bump.",
+        formula: "T2 × (1 + Luck%/100)   T3/T4 × that squared",
+        math: n1(v) + "% luck → T2 ×" + n1(lucky) + ", T3/T4 ×" + n1(lucky * lucky)
+          + " (wave " + w + ").",
+      };
+    }
+    case "harvesting":
+      return {
+        title,
+        blurb: "Flat materials paid at the end of every wave, on top of pickups.",
+        formula: "wave-end ◆ += Harvesting",
+        math: v > 0
+          ? "+" + n1(v) + " ◆ after each wave, even if you pick up nothing."
+          : "No end-of-wave bonus right now.",
+      };
+    case "engineering":
+      return {
+        title,
+        blurb: "Percent bonus to turret and orbital saw damage.",
+        formula: "structure hit = base × (1 + Engineering% / 100)",
+        math: v === 0
+          ? "Structures currently deal their base damage (Damage% still applies)."
+          : n1(v) + "% → structures ×" + n1(1 + v / 100) + ".",
+      };
+    default:
+      return { title, blurb: "", formula: "", math: "" };
+  }
+}

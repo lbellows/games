@@ -5,7 +5,7 @@ import { clamp } from "./core.js";
 import { itemPool, applyItemEffects } from "./items.js";
 import { WEAPON_DEFS, makeWeapon } from "./weapons.js";
 
-export const OFFER_COUNT = 4;
+export const OFFER_COUNT = 5;
 export const MAX_WEAPON_SLOTS = 6;
 
 const SELL_FRACTION = 0.5;   // refund on selling a weapon
@@ -104,17 +104,31 @@ function rollItemOffer(G, tier, used) {
   return null;
 }
 
+function usedIds(offers, skipIndex) {
+  const used = new Set();
+  for (let i = 0; i < offers.length; i++) {
+    if (i === skipIndex) continue;
+    const o = offers[i];
+    if (o && o.def && o.def.id) used.add(o.def.id);
+  }
+  return used;
+}
+
+function rollOneOffer(G, used) {
+  const tier = rollTier(G);
+  const wantWeapon = G.rng.chance(weaponChance(G));
+  let offer = wantWeapon ? rollWeaponOffer(G, tier, used) : rollItemOffer(G, tier, used);
+  if (!offer) offer = wantWeapon ? rollItemOffer(G, tier, used) : rollWeaponOffer(G, tier, used);
+  return offer;
+}
+
 function rollOffers(G) {
   const offers = [];
   if (!G.rng) return offers; // shopState can be polled before a run starts
 
   const used = new Set();
-  const wChance = weaponChance(G);
   for (let i = 0; i < OFFER_COUNT; i++) {
-    const tier = rollTier(G);
-    const wantWeapon = G.rng.chance(wChance);
-    let offer = wantWeapon ? rollWeaponOffer(G, tier, used) : rollItemOffer(G, tier, used);
-    if (!offer) offer = wantWeapon ? rollItemOffer(G, tier, used) : rollWeaponOffer(G, tier, used);
+    const offer = rollOneOffer(G, used);
     if (!offer) continue; // both pools exhausted; a short shop beats a broken one
     used.add(offer.def.id);
     offers.push(offer);
@@ -202,26 +216,30 @@ export function buyOffer(G, index) {
   }
   if (G.materials < offer.price) return fail(shop, "Not enough materials.");
 
+  let result;
   if (offer.kind === "weapon") {
     const w = makeWeapon(offer.def.id, offer.tier);
     if (!w) return fail(shop, "That weapon jammed on the way out of the crate.");
     w.buyPrice = offer.price;
     G.weapons.push(w);
     G.materials -= offer.price;
-    offer.sold = true;
-    shop.message = "";
     announce(G, "weaponBought", w);
-    return { ok: true, kind: "weapon", name: weaponName(w), price: offer.price, weapon: w };
+    result = { ok: true, kind: "weapon", name: weaponName(w), price: offer.price, weapon: w };
+  } else {
+    const item = { ...offer.def };
+    G.items.push(item);
+    G.materials -= offer.price;
+    applyItemEffects(G, item);
+    announce(G, "itemBought", item);
+    result = { ok: true, kind: "item", name: item.name, price: offer.price, item };
   }
 
-  const item = { ...offer.def };
-  G.items.push(item);
-  G.materials -= offer.price;
-  offer.sold = true;
+  // Replace the bought card so a purchase is not a dead slot until the next reroll.
+  const next = rollOneOffer(G, usedIds(shop.offers, index));
+  if (next) shop.offers[index] = next;
+  else offer.sold = true;
   shop.message = "";
-  applyItemEffects(G, item);
-  announce(G, "itemBought", item);
-  return { ok: true, kind: "item", name: item.name, price: offer.price, item };
+  return result;
 }
 
 // Buying changes the stat block; the integrator owns recomputeStats, so nudge it

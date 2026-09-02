@@ -190,13 +190,24 @@ export function beginWave(G, wave) {
 }
 
 function endWave(G) {
-  // Harvesting pays out at wave end, and unclaimed drops are swept up.
+  // Harvesting pays in full. Unclaimed drops are halved, so vacuuming during
+  // the wave is still worth the detour.
   G.materials += G.stats.harvesting;
+  let leftoverMats = 0;
+  let leftoverXp = 0;
   for (const pk of G.pickups) {
     if (pk.dead) continue;
-    if (pk.type === "material" || pk.type === "crate") G.materials += pk.value;
-    else if (pk.type === "xp") grantXp(G, pk.value);
+    if (pk.type === "material") leftoverMats += pk.value;
+    else if (pk.type === "xp") leftoverXp += pk.value;
+    else if (pk.type === "crate") {
+      leftoverMats += pk.value;
+      leftoverXp += Math.ceil(pk.value / 2);
+    }
   }
+  const mats = Math.floor(leftoverMats / 2);
+  const xp = Math.floor(leftoverXp / 2);
+  if (mats) G.materials += mats;
+  if (xp) grantXp(G, xp);
   G.pickups.length = 0;
   G.enemies.length = 0;
   G.hazards.length = 0;

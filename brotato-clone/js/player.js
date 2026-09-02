@@ -5,8 +5,8 @@ import { moveSpeed, applyArmor, xpForLevel } from "./stats.js";
 
 export const IFRAME_TIME = 0.45; // seconds of mercy after taking a hit
 // Kills land at weapon range, so the sweep has to reach comfortably past the
-// player's body or a wave's loot just sits on the floor until the end-of-wave
-// sweep. Harvesting widens it further.
+// player's body. Leftover floor loot only pays half at wave end. Harvesting
+// widens the magnet.
 const PICKUP_BASE_RANGE = 95;
 const MAGNET_SPEED = 620;
 

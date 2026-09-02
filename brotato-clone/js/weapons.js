@@ -472,20 +472,69 @@ function updateOrbit(G, w, stats) {
 
 /* ---------------------------------------------------------------- tooltip */
 
+function scaledHit(w, stats) {
+  let pct = stats.damage || 0;
+  if (w.dmgType === "melee") pct += stats.meleeDamage || 0;
+  else if (w.dmgType === "ranged") pct += stats.rangedDamage || 0;
+  let hit = w.damage * (1 + pct / 100);
+  if (w.scaling && w.scaling.engineering) hit *= 1 + (stats.engineering || 0) / 100;
+  return { hit, pct };
+}
+
+/** Typical non-crit hit after Damage / type / Engineering, as the UI shows. */
+export function weaponHit(w, stats) {
+  return Math.max(1, Math.round(scaledHit(w, stats).hit));
+}
+
 /** Sustained damage per second, as the shop shows it. */
 export function weaponDps(w, stats) {
-  let pct = stats.damage;
-  if (w.dmgType === "melee") pct += stats.meleeDamage;
-  else if (w.dmgType === "ranged") pct += stats.rangedDamage;
-  let hit = w.damage * (1 + pct / 100);
-  if (w.scaling.engineering) hit *= 1 + stats.engineering / 100;
-  const crit = clamp(stats.critChance + (w.bonusCrit || 0), 0, 100);
+  let hit = scaledHit(w, stats).hit;
+  const crit = clamp((stats.critChance || 0) + (w.bonusCrit || 0), 0, 100);
   hit *= 1 + crit / 100; // crits double, so crit% is a straight multiplier
   const cd = Math.max(0.02, attackCooldown(w.cooldown, stats));
   // dpsMul folds in what a single rolled hit cannot express: pellets that miss
   // at range, arcs that catch several bodies, splash, chains and pierce.
   const dps = ((hit * w.count) / cd) * (w.dpsMul || 1);
   return Math.round(dps * 10) / 10;
+}
+
+/** Numbers and copy for a weapon tooltip. */
+export function weaponBreakdown(w, stats) {
+  const s = stats || {};
+  const { hit, pct } = scaledHit(w, s);
+  const rounded = Math.max(1, Math.round(hit));
+  const crit = clamp((s.critChance || 0) + (w.bonusCrit || 0), 0, 100);
+  const cd = Math.max(0.02, attackCooldown(w.cooldown, s));
+  const rate = 1 / cd;
+  const dps = weaponDps(w, s);
+  let pctLabel = "Damage";
+  if (w.dmgType === "melee") pctLabel = "Damage+Melee";
+  else if (w.dmgType === "ranged") pctLabel = "Damage+Ranged";
+  const bits = [];
+  if (pct || (w.scaling && w.scaling.engineering && s.engineering)) {
+    bits.push("hit = " + w.damage + " × (1 + " + (Math.round(pct * 10) / 10) + "% " + pctLabel + ")");
+    if (w.scaling && w.scaling.engineering) {
+      bits.push("× (1 + " + (Math.round((s.engineering || 0) * 10) / 10) + "% Engineering)");
+    }
+    bits.push("= " + rounded);
+  } else {
+    bits.push("hit = " + rounded);
+  }
+  const math = [
+    (w.count > 1 ? w.count + " pellets × " : "") + (Math.round(rate * 10) / 10) + "/s",
+    "crit " + (Math.round(crit * 10) / 10) + "% → expected ×" + (Math.round((1 + crit / 100) * 100) / 100),
+    (w.dpsMul && w.dpsMul !== 1 ? "cleave/splash ×" + w.dpsMul + "  →  " : "") + dps + " dps",
+  ].join("\n");
+  return {
+    title: (w.name || "Weapon") + "  ·  T" + (w.tier || 1),
+    blurb: w.desc || "",
+    formula: bits.join(" "),
+    math,
+    hit: rounded,
+    dps,
+    cd,
+    crit,
+  };
 }
 
 /* ---------------------------------------------------------------- helpers */

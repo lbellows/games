@@ -706,8 +706,9 @@ function drawPlayer(G, a) {
   ctx.translate(x, y + bob);
   ctx.globalAlpha = flick ? 0.4 : 1;
   if (playerSprite && playerSprite.naturalWidth) {
-    // Billboard: the face stays readable. Facing is the aim pip below.
     const s = p.r * 2.55;
+    // Billboard face; mirror when moving left so the potato turns.
+    if (Math.cos(p.facing || 0) < 0) ctx.scale(-1, 1);
     ctx.drawImage(playerSprite, -s, -s * 1.02, s * 2, s * 2);
   } else {
     ctx.beginPath();
@@ -718,19 +719,6 @@ function drawPlayer(G, a) {
     ctx.strokeStyle = "#dff1ff";
     ctx.stroke();
   }
-  ctx.restore();
-
-  const f = p.facing || 0;
-  ctx.save();
-  ctx.translate(x, y);
-  ctx.rotate(f);
-  ctx.fillStyle = "rgba(13,18,32,0.9)";
-  ctx.beginPath();
-  ctx.moveTo(p.r * 1.35, -3.6);
-  ctx.lineTo(p.r * 1.78, 0);
-  ctx.lineTo(p.r * 1.35, 3.6);
-  ctx.closePath();
-  ctx.fill();
   ctx.restore();
   ctx.globalAlpha = 1;
 
@@ -1005,20 +993,7 @@ function drawProjectiles(G, a) {
   }
 }
 
-// Enemies are drawn over the player (contract draw order), so a thin beacon
-// ring in the effects pass keeps the player findable inside a swarm.
-function drawPlayerMarker(G) {
-  const p = G.player;
-  if (!p || p.dead) return;
-  ctx.beginPath();
-  ctx.arc(p.x, p.y, p.r + 7 + Math.sin(time * 4) * 1.5, 0, TAU);
-  ctx.lineWidth = 2;
-  ctx.strokeStyle = "rgba(190,230,255,0.4)";
-  ctx.stroke();
-}
-
 function drawEffects(G) {
-  drawPlayerMarker(G);
   const s = fxStore(G);
   const { px, py, plife, pmax, psize, pcol, pal, groups } = s;
 

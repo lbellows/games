@@ -4,11 +4,12 @@
 // rebuilt on a content signature, never per frame.
 
 import { fmt } from "./core.js";
-import { BASE_STATS, STAT_LABELS, PERCENT_STATS, xpForLevel } from "./stats.js";
+import { BASE_STATS, STAT_LABELS, PERCENT_STATS, xpForLevel, describeStat } from "./stats.js";
 import { shopState } from "./shop.js";
-import { weaponDps } from "./weapons.js";
+import { makeWeapon, weaponDps, weaponHit, weaponBreakdown } from "./weapons.js";
 import { TOTAL_WAVES } from "./waves.js";
 import { iconSVG } from "./icons.js";
+import { toggleMute, isMuted } from "./audio.js";
 
 const SLOTS = 6;
 
@@ -131,13 +132,83 @@ function modsLine(mods) {
   return out;
 }
 
-function weaponLine(def) {
+function asWeapon(def, tier) {
+  if (!def) return null;
+  if (def.dmgType && def.cooldown) return def;
+  if (!def.id) return def;
+  try { return makeWeapon(def.id, tier || def.tier || 1); } catch (err) { return def; }
+}
+
+function weaponLine(def, tier, stats) {
+  const w = asWeapon(def, tier);
+  if (!w) return "";
+  const s = stats || BASE_STATS;
   const bits = [];
-  if (def.damage !== undefined) bits.push(fmt(def.damage) + " dmg");
-  if (def.cooldown !== undefined) bits.push(fmt(Math.round(def.cooldown * 100) / 100) + "s");
-  if (def.count > 1) bits.push("x" + def.count);
-  if (def.pierce) bits.push("pierce " + def.pierce);
+  const hit = w.damage !== undefined ? weaponHit(w, s) : 0;
+  const dps = w.cooldown ? weaponDps(w, s) : 0;
+  if (hit) bits.push('<span class="up">' + fmt(hit) + " dmg</span>");
+  if (dps) bits.push(fmt(dps) + " dps");
+  if (w.count > 1) bits.push("x" + w.count);
+  if (w.pierce) bits.push("pierce " + w.pierce);
   return bits.join(" · ");
+}
+
+function tipHTML(t) {
+  if (!t) return "";
+  let h = '<div class="tip-title">' + t.title + "</div>";
+  if (t.blurb) h += '<p class="tip-blurb">' + t.blurb + "</p>";
+  if (t.formula) h += '<pre class="tip-formula">' + t.formula + "</pre>";
+  if (t.math) h += '<p class="tip-math">' + String(t.math).replace(/\n/g, "<br />") + "</p>";
+  return h;
+}
+
+function placeTip(anchor) {
+  const tip = el.tip;
+  if (!tip || !anchor || !el.stage) return;
+  const stage = el.stage.getBoundingClientRect();
+  const scale = stage.width / 1280 || 1;
+  const a = anchor.getBoundingClientRect();
+  const tw = tip.offsetWidth || 280;
+  const th = tip.offsetHeight || 120;
+  const ax = (a.left - stage.left) / scale;
+  const ay = (a.top - stage.top) / scale;
+  const aw = a.width / scale;
+  const ah = a.height / scale;
+  let x, y;
+  // Wide cards (shop / level-up) sit in a row — put the tip underneath.
+  if (aw > 160 && ay + ah + 8 + th < 712) {
+    x = ax;
+    y = ay + ah + 8;
+  } else {
+    x = ax + aw + 10;
+    y = ay;
+    if (x + tw > 1268) x = ax - tw - 10;
+  }
+  if (x + tw > 1268) x = 1268 - tw;
+  if (x < 8) x = 8;
+  if (y + th > 708) y = 720 - 12 - th;
+  if (y < 8) y = 8;
+  tip.style.left = Math.round(x) + "px";
+  tip.style.top = Math.round(y) + "px";
+}
+
+function showTip(html, anchor) {
+  if (!el.tip || !html) return;
+  setHTML(el.tip, html);
+  show(el.tip, true);
+  placeTip(anchor);
+}
+
+function hideTip() {
+  if (el.tip) show(el.tip, false);
+}
+
+function bindTip(node, htmlFn) {
+  node.addEventListener("mouseenter", () => {
+    const html = typeof htmlFn === "function" ? htmlFn() : node._tip;
+    if (html) showTip(html, node);
+  });
+  node.addEventListener("mouseleave", hideTip);
 }
 
 /* ------------------------------------------------------------ level choices */
@@ -179,6 +250,7 @@ function buildHudSlots() {
     d._icon = d.querySelector(".slot-icon");
     d._name = d.querySelector(".slot-name");
     d._sub = d.querySelector(".slot-sub");
+    bindTip(d, () => d._tip);
     frag.appendChild(d);
     hudSlots.push(d);
   }
@@ -200,6 +272,7 @@ function buildShopSlots() {
     d._sub = d.querySelector(".slot-sub");
     d._btn = d.querySelector("button");
     d._btn.addEventListener("click", () => A.sell(i));
+    bindTip(d, () => d._tip);
     frag.appendChild(d);
     shopSlots.push(d);
   }
@@ -215,6 +288,10 @@ function buildStatSheet() {
       '<span class="sicon">' + iconSVG(key) + '</span>' +
       '<span class="sname">' + STAT_LABELS[key] + '</span><span class="sval">0</span>';
     row._val = row.querySelector(".sval");
+    bindTip(row, () => {
+      if (!G0) return "";
+      return tipHTML(describeStat(key, G0.stats, G0.wave));
+    });
     frag.appendChild(row);
     statRows.set(key, row);
   }
@@ -243,7 +320,9 @@ function makeCard(index, onPick, withPrice) {
   b.addEventListener("click", () => onPick(index));
   b.addEventListener("mouseenter", () => {
     if (!withPrice) selectChoice(index);
+    if (b._tip) showTip(b._tip, b);
   });
+  b.addEventListener("mouseleave", hideTip);
   return b;
 }
 
@@ -318,6 +397,10 @@ function onKey(e) {
     e.preventDefault();
     return;
   }
+  if (k === "m") {
+    toggleMute();
+    return;
+  }
   if (k === " " || k === "enter") {
     confirm();
     e.preventDefault();
@@ -327,7 +410,7 @@ function onKey(e) {
     A.reroll();
     return;
   }
-  if (G.phase === "shop" && k >= "1" && k <= "4") {
+  if (G.phase === "shop" && k >= "1" && k <= "5") {
     A.buy(+k - 1);
     return;
   }
@@ -397,6 +480,8 @@ export function initUI(G, actions) {
     statSheet: q("stat-sheet"),
     rerollBtn: q("btn-reroll"),
     rerollCost: q("reroll-cost"),
+    muteBtn: q("btn-mute"),
+    tip: q("tip"),
     overStats: q("over-stats"),
     winStats: q("win-stats"),
   };
@@ -412,6 +497,10 @@ export function initUI(G, actions) {
   q("btn-restart").addEventListener("click", () => A.restart());
   q("btn-restart-win").addEventListener("click", () => A.restart());
   el.rerollBtn.addEventListener("click", () => A.reroll());
+  if (el.muteBtn) {
+    el.muteBtn.addEventListener("click", () => toggleMute());
+    el.muteBtn.classList.toggle("is-muted", isMuted());
+  }
 
   window.addEventListener("keydown", onKey);
   window.addEventListener("resize", fitStage);
@@ -453,8 +542,8 @@ function slotSignature(G, shop) {
     const d = unwrap(w[i]);
     s += "|" + (d.id || d.name || i) + ":" + (w[i].tier || d.tier || 1);
   }
-  // The shop list prints live dps, so damage-side stats belong in its signature.
-  if (shop && G.stats) {
+  // Slots print live dmg/dps, so damage-side stats belong in the signature.
+  if (G.stats) {
     const t = G.stats;
     s += "#" + t.damage + "," + t.meleeDamage + "," + t.rangedDamage + "," +
       t.attackSpeed + "," + t.critChance + "," + t.engineering;
@@ -480,6 +569,7 @@ function syncSlots(G, nodes, shop) {
       setIcon(node._icon, "");
       setText(node._name, "—");
       setText(node._sub, shop ? "empty slot" : "empty");
+      node._tip = "";
       if (node._btn) show(node._btn, false);
       continue;
     }
@@ -489,17 +579,24 @@ function syncSlots(G, nodes, shop) {
     setTier(node, tier);
     setIcon(node._icon, d.id || "");
     setText(node._name, d.name || d.id || "weapon");
-    let sub = (d.type || "weapon") + " · T" + tier;
-    if (shop) {
-      let dps = 0;
-      try {
-        dps = weaponDps(w, G.stats);
-      } catch (err) {
-        dps = 0;
-      }
-      if (dps) sub += " · " + fmt(Math.round(dps * 10) / 10) + " dps";
+    const stats = G.stats || BASE_STATS;
+    let hit = 0;
+    let dps = 0;
+    try {
+      hit = weaponHit(w, stats);
+      dps = weaponDps(w, stats);
+    } catch (err) {
+      hit = w.damage || 0;
     }
-    setText(node._sub, sub);
+    const bits = [];
+    if (hit) bits.push(fmt(hit) + " dmg");
+    if (dps) bits.push(fmt(dps) + " dps");
+    setText(node._sub, bits.length ? bits.join(" · ") : (d.type || "weapon") + " · T" + tier);
+    try {
+      node._tip = tipHTML(weaponBreakdown(w, stats));
+    } catch (err) {
+      node._tip = "";
+    }
     if (node._btn) show(node._btn, true);
   }
   if (shop) setText(el.slotCount, G.weapons.length + " / " + SLOTS);
@@ -515,6 +612,11 @@ function syncShop(G) {
     const d = unwrap(offers[i]);
     sig += "|" + (d.id || d.name || i) + (offers[i].sold || offers[i].bought ? "!" : "");
   }
+  if (G.stats) {
+    const t = G.stats;
+    sig += "#" + t.damage + "," + t.meleeDamage + "," + t.rangedDamage + "," +
+      t.attackSpeed + "," + t.critChance + "," + t.engineering;
+  }
   if (sig !== shopSig) {
     shopSig = sig;
     for (let i = 0; i < offers.length; i++) {
@@ -524,12 +626,25 @@ function syncShop(G) {
       setIcon(card._icon, o.def.id || "");
       setText(card._kind, o.kind + " · T" + o.tier);
       setText(card._name, o.name);
-      setHTML(card._mods, o.weapon ? weaponLine(o.def) : modsLine(o.mods || {}));
+      setHTML(card._mods, o.weapon ? weaponLine(o.def, o.tier, G.stats) : modsLine(o.mods || {}));
       setText(card._desc, o.desc);
       if (card._price) setText(card._price, o.price + " ◆");
       setClass(card, "sold", o.sold);
       card._price0 = o.price;
       card._sold = o.sold;
+      if (o.weapon) {
+        try {
+          card._tip = tipHTML(weaponBreakdown(asWeapon(o.def, o.tier), G.stats || BASE_STATS));
+        } catch (err) {
+          card._tip = "";
+        }
+      } else if (o.mods) {
+        const parts = [];
+        for (const k in o.mods) parts.push(tipHTML(describeStat(k, G.stats || BASE_STATS, G.wave)));
+        card._tip = parts.join("") || "";
+      } else {
+        card._tip = "";
+      }
     }
   }
 
@@ -581,7 +696,16 @@ function syncLevelUp(G) {
     setText(card._kind, "UPGRADE");
     setText(card._name, c.name);
     setHTML(card._mods, c.value);
-    setText(card._desc, c.desc);
+    const key = raw.stat || raw.key;
+    const amount = raw.amount !== undefined ? raw.amount : raw.value;
+    let info = null;
+    if (key) {
+      const after = Object.assign({}, G.stats || BASE_STATS);
+      if (amount) after[key] = (after[key] || 0) + amount;
+      info = describeStat(key, after, G.wave);
+    }
+    setText(card._desc, c.desc || (info ? info.blurb : ""));
+    card._tip = info ? tipHTML(info) : "";
   }
   selectChoice(0);
 }
@@ -604,6 +728,7 @@ export function syncUI(G) {
     if (phase === "win") setHTML(el.winStats, runStats(G));
     if (phase === "shop") shopSig = "";      // force a rebuild on entry
     if (phase === "levelup") choiceSig = "";
+    hideTip();
   }
 
   show(el.scPause, phase === "wave" && !!G.paused);

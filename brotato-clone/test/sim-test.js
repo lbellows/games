@@ -4,11 +4,12 @@
 
 import { createGame, update, startRun, nextWave, pickUpgrade, recomputeStats } from "../js/game.js";
 import { TOTAL_WAVES } from "../js/waves.js";
-import { WEAPON_DEFS, makeWeapon } from "../js/weapons.js";
+import { WEAPON_DEFS, makeWeapon, weaponHit, weaponDps } from "../js/weapons.js";
 import { ITEM_DEFS } from "../js/items.js";
 import { ENEMY_TYPES } from "../js/enemies.js";
-import { BASE_STATS, applyArmor } from "../js/stats.js";
+import { BASE_STATS, STAT_LABELS, applyArmor, computeStats, describeStat } from "../js/stats.js";
 import { shopState, buyOffer, rerollShop } from "../js/shop.js";
+import { initAudio, audioState } from "../js/audio.js";
 
 const STEP = 1 / 60;
 let fails = 0;
@@ -82,6 +83,46 @@ chk("every enemy declares a legal shape and color", () => {
     assert(/^#|rgb/.test(String(d.color)), `${id} bad color "${d.color}"`);
   }
 });
+chk("audio stays inert in node", () => {
+  const a = initAudio();
+  a.unlock();
+  a.play("shoot");
+  const s = audioState();
+  assert(s.ctx === "none" && !s.ready, `audio graph started in node (${s.ctx})`);
+});
+chk("every stat has a tooltip with a formula", () => {
+  const s = computeStats([]);
+  for (const k of Object.keys(STAT_LABELS)) {
+    const t = describeStat(k, s, 3);
+    assert(t && t.title, `stat "${k}" has no title`);
+    assert(t.formula, `stat "${k}" has no formula`);
+    assert(t.math, `stat "${k}" has no worked math`);
+  }
+});
+chk("armor tooltip math matches applyArmor", () => {
+  const s = computeStats([{ armor: 15 }]);
+  const t = describeStat("armor", s, 1);
+  assert(applyArmor(20, 15) === 10, "15 armor should halve a 20-damage hit");
+  assert(/10/.test(t.math), `armor math "${t.math}" should mention 10 taken`);
+});
+chk("weapons report damage and dps at every tier", () => {
+  const s = computeStats([]);
+  for (const id of Object.keys(WEAPON_DEFS)) {
+    for (let t = 1; t <= 4; t++) {
+      const w = makeWeapon(id, t);
+      const hit = weaponHit(w, s);
+      const dps = weaponDps(w, s);
+      assert(hit >= 1, `${id} T${t} hit ${hit}`);
+      assert(dps > 0, `${id} T${t} dps ${dps}`);
+    }
+  }
+});
+chk("attack speed raises dps", () => {
+  const w = makeWeapon("pistol", 1);
+  const slow = weaponDps(w, computeStats([]));
+  const fast = weaponDps(w, computeStats([{ attackSpeed: 100 }]));
+  assert(fast > slow * 1.8, `AS 100% should nearly double pistol dps (${slow} → ${fast})`);
+});
 chk("every weapon can be instantiated at all four tiers", () => {
   for (const id of Object.keys(WEAPON_DEFS)) {
     let prev = 0;
@@ -134,9 +175,9 @@ if (G.phase === "levelup") {
   while (G.phase === "levelup" && lguard++ < 30) pickUpgrade(G, 0);
   chk("picking upgrades reaches the shop", () => assert(G.phase === "shop", `phase is ${G.phase}`));
 }
-chk("shop offers four things", () => {
+chk("shop offers five things", () => {
   const st = shopState(G);
-  assert(st.offers.length === 4, `got ${st.offers.length} offers`);
+  assert(st.offers.length === 5, `got ${st.offers.length} offers`);
 });
 chk("shop offers carry price and name", () => {
   for (const o of shopState(G).offers) {
@@ -154,10 +195,22 @@ chk("reroll charges materials when affordable", () => {
 chk("buying an affordable offer spends materials", () => {
   G.materials = 5000;
   const before = G.materials;
-  const st = shopState(G);
   buyOffer(G, 0);
   assert(G.materials < before, "materials unchanged after buy");
   assert(G.items.length + G.weapons.length > 1, "nothing was acquired");
+});
+chk("buying restocks the slot instead of leaving it sold", () => {
+  G.materials = 5000;
+  const before = shopState(G).offers.map((o) => o.id);
+  const r = buyOffer(G, 0);
+  assert(r.ok, r.reason || "buy failed");
+  const after = shopState(G).offers;
+  assert(after.length === 5, `got ${after.length} offers after buy`);
+  assert(!after[0].sold, "bought slot stayed sold");
+  assert(after[0].id && after[0].name, "restocked offer is empty");
+  for (let i = 1; i < 5; i++) {
+    assert(after[i].id === before[i], `untouched slot ${i} changed`);
+  }
 });
 chk("weapon slots never exceed six", () => {
   for (let i = 0; i < 40; i++) {
@@ -174,6 +227,34 @@ chk("stats recompute from owned items", () => {
   for (const [k, v] of Object.entries(G.stats)) {
     assert(Number.isFinite(v), `stat ${k} is ${v}`);
   }
+});
+
+console.log("\nend-of-wave leftover sweep");
+chk("uncollected gold and xp pay out at half", () => {
+  const H = createGame(99);
+  startRun(H);
+  H.spawnPickup(40, 40, "material", 10);
+  H.spawnPickup(50, 40, "xp", 8);
+  H.spawnPickup(60, 40, "crate", 6);
+  const mats0 = H.materials;
+  const xp0 = H.xp;
+  H.t = H.waveTime;
+  update(H, STEP);
+  H.input.endFrame();
+  // crate leftover: 6 mats + ceil(6/2)=3 xp, plus 10 mats and 8 xp -> 16 mats, 11 xp
+  assert(H.materials === mats0 + Math.floor(16 / 2), `materials ${H.materials}, expected ${mats0 + 8}`);
+  assert(H.xp === xp0 + Math.floor(11 / 2) || H.level > 1, `xp ${H.xp}, expected ${xp0 + 5}`);
+  assert(H.pickups.length === 0, "leftover pickups were not cleared");
+});
+chk("in-wave collection still pays in full", () => {
+  const H = createGame(101);
+  startRun(H);
+  const mats0 = H.materials;
+  const pk = H.spawnPickup(H.player.x, H.player.y, "material", 7);
+  update(H, STEP);
+  H.input.endFrame();
+  assert(pk.dead, "standing on a drop did not collect it");
+  assert(H.materials === mats0 + 7, `in-wave collect paid ${H.materials - mats0}, expected 7`);
 });
 
 console.log("\nfull 20-wave endurance run (god-mode player, checks for crashes)");

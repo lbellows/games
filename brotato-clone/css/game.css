@@ -254,6 +254,49 @@ body {
   color: rgba(147, 160, 189, 0.55);
 }
 
+.mute-btn {
+  position: absolute;
+  left: 10px;
+  bottom: 12px;
+  z-index: 8;
+  pointer-events: auto;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 0;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  background: rgba(10, 14, 26, 0.86);
+  box-shadow: inset 0 0 0 1px var(--line);
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.mute-btn:hover {
+  box-shadow: inset 0 0 0 1px var(--line-hot);
+  color: #fff;
+}
+
+.mute-btn svg {
+  width: 20px;
+  height: 20px;
+  display: block;
+}
+
+.mute-btn .mute-off {
+  display: none;
+}
+
+.mute-btn.is-muted .mute-on {
+  display: none;
+}
+
+.mute-btn.is-muted .mute-off {
+  display: block;
+  color: var(--bad);
+}
+
 #slots {
   position: absolute;
   left: 50%;
@@ -315,8 +358,7 @@ body {
 .slot .slot-sub {
   display: block;
   font-size: 10px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  letter-spacing: 0.04em;
   color: var(--dim);
 }
 
@@ -586,6 +628,19 @@ kbd {
 
 .cards.four {
   grid-template-columns: repeat(4, 1fr);
+}
+
+.cards.five {
+  grid-template-columns: repeat(5, 1fr);
+}
+
+.cards.five .card {
+  min-height: 124px;
+  padding: 8px 11px 34px;
+}
+
+.cards.five .card-name {
+  font-size: 17px;
 }
 
 .card {
@@ -881,6 +936,66 @@ kbd {
 
 .stat-row.nerfed .sval {
   color: var(--bad);
+}
+
+.stat-row,
+.slot:not(.empty),
+.wslot:not(.empty) {
+  pointer-events: auto;
+  cursor: help;
+}
+
+.wslot .btn {
+  cursor: pointer;
+}
+
+#tip {
+  position: absolute;
+  z-index: 20;
+  width: 300px;
+  padding: 10px 12px 12px;
+  border-radius: 10px;
+  background: rgba(10, 14, 28, 0.96);
+  box-shadow:
+    inset 0 0 0 1px var(--line-hot),
+    0 18px 48px rgba(0, 0, 0, 0.7);
+  pointer-events: none;
+  color: var(--ink);
+}
+
+.tip-title {
+  font-family: "Chakra Petch", sans-serif;
+  font-size: 15px;
+  letter-spacing: 0.08em;
+  margin-bottom: 6px;
+  color: var(--gold);
+}
+
+.tip-blurb {
+  margin: 0 0 8px;
+  font-size: 12.5px;
+  line-height: 1.4;
+  color: var(--dim);
+}
+
+.tip-formula {
+  margin: 0 0 8px;
+  padding: 7px 8px;
+  border-radius: 6px;
+  background: rgba(6, 9, 18, 0.85);
+  box-shadow: inset 0 0 0 1px var(--line);
+  font-family: "Chakra Petch", ui-monospace, monospace;
+  font-size: 11px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  color: #d5def4;
+}
+
+.tip-math {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--ink);
 }
 
 .shop-foot {

@@ -22,6 +22,15 @@
         <canvas id="view" width="1280" height="720"></canvas>
 
         <div id="ui">
+          <div id="tip" class="hidden" role="tooltip"></div>
+          <button id="btn-mute" class="mute-btn" type="button" aria-label="Mute" title="Mute (M)">
+            <svg class="mute-on" viewBox="0 0 24 24" aria-hidden="true">
+              <path fill="currentColor" d="M4 9v6h3.2L12 19.4V4.6L7.2 9H4zm11.5 3c0-1.8-1-3.3-2.5-4v8c1.5-.7 2.5-2.2 2.5-4zm-2.5-8.5v2.1c2.9.9 5 3.5 5 6.4s-2.1 5.5-5 6.4v2.1c4-.9 7-4.5 7-8.5s-3-7.6-7-8.5z"/>
+            </svg>
+            <svg class="mute-off" viewBox="0 0 24 24" aria-hidden="true">
+              <path fill="currentColor" d="M4 9v6h3.2L12 19.4V4.6L7.2 9H4zm12.4-3.1-1.4 1.4 2.1 2.1-2.1 2.1 1.4 1.4 2.1-2.1 2.1 2.1 1.4-1.4-2.1-2.1 2.1-2.1-1.4-1.4-2.1 2.1-2.1-2.1z"/>
+            </svg>
+          </button>
           <!-- ---------------------------------------------------------- HUD -->
           <div id="hud" class="hidden">
             <div id="hud-left">
@@ -67,8 +76,9 @@
                 <div><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd><span>move</span></div>
                 <div><kbd>Space</kbd><span>confirm</span></div>
                 <div><kbd>R</kbd><span>reroll shop</span></div>
-                <div><kbd>1</kbd>–<kbd>4</kbd><span>buy</span></div>
+                <div><kbd>1</kbd>–<kbd>5</kbd><span>buy</span></div>
                 <div><kbd>Esc</kbd><span>pause</span></div>
+                <div><kbd>M</kbd><span>mute</span></div>
               </div>
               <p class="fine">Weapons fire themselves at whatever is closest. Stay alive.</p>
             </div>
@@ -102,7 +112,7 @@
                 </div>
               </header>
 
-              <div id="shop-offers" class="cards four"></div>
+              <div id="shop-offers" class="cards five"></div>
 
               <div class="shop-lower">
                 <div class="col">
@@ -116,7 +126,7 @@
               </div>
 
               <footer class="shop-foot">
-                <p class="fine" id="shop-hint">Buy with <kbd>1</kbd>–<kbd>4</kbd>, then go.</p>
+                <p class="fine" id="shop-hint">Buy with <kbd>1</kbd>–<kbd>5</kbd>, then go.</p>
                 <button id="btn-next" class="btn primary big">Next wave <kbd>Space</kbd></button>
               </footer>
             </div>

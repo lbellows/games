@@ -66,6 +66,11 @@ async function paintedPixels() {
     const p = await page.eval('G.phase');
     assert(p === 'menu', `phase is "${p}"`);
   });
+  await chk('mute control is on the chrome', async () => {
+    const b = await page.eval(`(()=>{const el=document.getElementById('btn-mute');
+      return el ? el.tagName : null})()`);
+    assert(b === 'BUTTON', 'mute button missing');
+  });
   await page.screenshot(path.join(SHOT, 'brotato-1-title.png'));
 
   console.log('\nstarting a run');
@@ -78,6 +83,14 @@ async function paintedPixels() {
     await sleep(150);
     const p = await page.eval('G.phase');
     assert(p === 'wave', `phase is "${p}" after start`);
+  });
+  await chk('audio graph is available after start', async () => {
+    const st = await page.eval('typeof audioState === "function" ? audioState() : null');
+    assert(st, 'audioState hook missing');
+    // A scripted .click() is not a user gesture, so autoplay policy may leave
+    // the context suspended. The graph still has to exist.
+    assert(st.ready === true || st.ctx === "running" || st.ctx === "suspended",
+      `audio graph missing (${JSON.stringify(st)})`);
   });
   await chk('the renderer paints a non-trivial frame', async () => {
     await sleep(400);
@@ -137,13 +150,13 @@ async function paintedPixels() {
       if (!clicked) break;
     }
   });
-  await chk('the shop opens with four offers', async () => {
+  await chk('the shop opens with five offers', async () => {
     const phase = await page.eval('G.phase');
     assert(phase === 'shop', `phase is "${phase}"`);
     const n = await page.eval('(()=>{ return window.__shopOffers ? window.__shopOffers() : null })()');
     // Fall back to counting rendered cards when no debug hook exists.
     const cards = await page.eval(`document.querySelectorAll('#shop-offers .card').length`);
-    assert((n === 4) || cards >= 4, `offers=${n} rendered cards=${cards}`);
+    assert((n === 5) || cards >= 5, `offers=${n} rendered cards=${cards}`);
   });
   await page.screenshot(path.join(SHOT, 'brotato-4-shop.png'));
   await chk('shop UI is visibly populated with text', async () => {
