@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Shining Tactics</title>
+<style>
+  :root { --ink:#e6e9f2; --dim:#8d97b5; }
+  * { box-sizing:border-box; }
+  html,body { height:100%; }
+  body {
+    margin:0; background:#070910;
+    background-image:
+      radial-gradient(1200px 700px at 50% -10%, #1b2340 0%, #0a0d18 55%, #06070d 100%);
+    color:var(--ink);
+    font-family:'Courier New',ui-monospace,monospace;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    min-height:100%; padding:14px; gap:10px;
+  }
+  h1 {
+    margin:0; font-size:15px; letter-spacing:.32em; font-weight:700;
+    color:#ffe27a; text-transform:uppercase; text-shadow:0 0 14px rgba(255,226,122,.28);
+  }
+  #frame {
+    padding:10px; border-radius:10px;
+    background:linear-gradient(#232a41,#141827);
+    box-shadow:0 0 0 1px #3d4665, 0 18px 50px rgba(0,0,0,.65);
+    max-width:100%;
+  }
+  canvas {
+    display:block; background:#0a0d16; border-radius:4px;
+    image-rendering:auto; max-width:100%; height:auto;
+    box-shadow:0 0 0 2px #0a0d16, 0 0 22px rgba(0,0,0,.6) inset;
+    cursor:crosshair; touch-action:none;
+  }
+  footer { font-size:11.5px; color:var(--dim); text-align:center; line-height:1.7; max-width:880px; }
+  kbd {
+    background:#232a41; border:1px solid #3d4665; border-bottom-width:2px;
+    border-radius:3px; padding:0 5px; color:#dfe4f2; font-size:11px;
+  }
+</style>
+</head>
+<body>
+  <h1>Shining Tactics</h1>
+  <div id="frame"><canvas id="screen" width="864" height="688"></canvas></div>
+  <footer>
+    <kbd>click</kbd> / <kbd>Enter</kbd> confirm &nbsp;·&nbsp;
+    <kbd>right-click</kbd> / <kbd>Esc</kbd> cancel &nbsp;·&nbsp;
+    <kbd>↑↓←→</kbd> or <kbd>WASD</kbd> cursor &nbsp;·&nbsp;
+    <kbd>M</kbd> mute<br>
+    Move onto a blue tile, then pick an action. Standing in forest or on hills raises your
+    defence; archers striking from two squares away take no counterattack.
+  </footer>
+  <script src="game.js"></script>
+</body>
+</html>
