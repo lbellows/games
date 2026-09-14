@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>VOID//RUNNER</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <main class="shell">
+    <header class="topbar">
+      <div class="brand"><span class="brand-mark">✦</span><span>VOID<span class="accent">//</span>RUNNER</span><small>SECTOR 07</small></div>
+      <div class="top-meta"><span class="status-dot"></span><span>LIVE RUN</span><span class="divider"></span><span id="clock">00:00</span></div>
+    </header>
+
+    <section class="game-wrap">
+      <div class="canvas-frame">
+        <canvas id="game" aria-label="Void Runner game arena"></canvas>
+        <div class="scanlines"></div>
+        <div class="corner corner-tl"></div><div class="corner corner-tr"></div><div class="corner corner-bl"></div><div class="corner corner-br"></div>
+        <div id="start-screen" class="overlay active">
+          <div class="intro-kicker">PROTOCOL: NIGHTFALL</div>
+          <h1>DESCEND INTO<br><span>THE VOID</span></h1>
+          <p>Survive the swarm. Harvest echoes. Evolve beyond the signal.</p>
+          <button id="start-btn" class="primary-btn">INITIALIZE RUN <b>↗</b></button>
+          <div class="controls"><span><kbd>WASD</kbd> MOVE</span><span><kbd>MOUSE</kbd> AIM</span><span><kbd>SPACE</kbd> DASH</span></div>
+        </div>
+        <div id="upgrade-screen" class="overlay">
+          <div class="intro-kicker">WAVE CLEARED // SELECT AUGMENT</div>
+          <h2>EVOLVE YOUR SIGNAL</h2>
+          <div id="upgrade-cards" class="upgrade-cards"></div>
+        </div>
+        <div id="game-over" class="overlay">
+          <div class="intro-kicker danger-text">SIGNAL LOST</div>
+          <h2>THE VOID CLAIMS YOU</h2>
+          <div class="final-stats"><span>WAVE <b id="final-wave">01</b></span><span>ECHOES <b id="final-score">0000</b></span></div>
+          <button id="restart-btn" class="primary-btn">REBOOT RUN <b>↻</b></button>
+        </div>
+        <div id="pause-screen" class="overlay"><div class="intro-kicker">SYSTEM PAUSED</div><h2>TAKE A BREATH</h2><p>Press <kbd>ESC</kbd> to resume the run.</p></div>
+      </div>
+
+      <aside class="hud">
+        <div class="hud-section identity"><div class="avatar">VR</div><div><div class="eyebrow">RUNNER ID</div><strong>VANTA-09</strong><div class="level">LEVEL <span id="level">01</span> <i>•</i> <span id="xp-text">0 / 100 XP</span></div></div></div>
+        <div class="xp-bar"><span id="xp-fill"></span></div>
+        <div class="hud-section stat-row"><div><div class="eyebrow">WAVE</div><strong id="wave">01</strong></div><div><div class="eyebrow">SCORE</div><strong id="score">0000</strong></div><div><div class="eyebrow">BEST</div><strong id="best">0000</strong></div></div>
+        <div class="hud-section vitals"><div class="label-line"><span>HULL INTEGRITY</span><b id="hp-text">100 / 100</b></div><div class="health-bar"><span id="hp-fill"></span></div><div class="label-line shield-line"><span>SHIELD</span><b id="shield-text">40 / 40</b></div><div class="shield-bar"><span id="shield-fill"></span></div></div>
+        <div class="hud-section weapon"><div class="eyebrow">EQUIPPED MODULE</div><div class="weapon-line"><span class="weapon-icon">◎</span><div><strong id="weapon-name">PULSE CANNON</strong><small id="weapon-detail">AUTO-FIRE • LVL 01</small></div></div><div class="module-tags"><span id="damage-tag">DMG 12</span><span id="rate-tag">RATE 1.0×</span></div></div>
+        <div class="hud-section objective"><div class="eyebrow">CURRENT OBJECTIVE</div><strong>SURVIVE THE WAVE</strong><div class="enemy-progress"><span id="enemy-fill"></span></div><div class="label-line"><span id="enemy-count">0 HOSTILES REMAIN</span><span id="wave-timer">00:30</span></div></div>
+        <div class="tip"><span>⌁</span> <b>TIP</b> Keep moving to avoid being surrounded.</div>
+      </aside>
+    </section>
+    <footer><span>© 2086 NEON//KINETIC</span><span>RUN STATUS: <b>UNSTABLE</b></span><span>V 0.7.4</span></footer>
+  </main>
+  <script src="game.js"></script>
+</body>
+</html>
