@@ -1,0 +1,51 @@
+name: Deploy games to Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: garden-defenders/package-lock.json
+      - name: Build garden-defenders
+        working-directory: garden-defenders
+        run: npm ci && npm run build
+      - name: Assemble site
+        run: |
+          mkdir _site
+          cp index.html _site/
+          for g in brotato-clone claude-1shot-shiningforce grok-1shot-game void-runner; do
+            rsync -a --exclude test --exclude '*.md' --exclude 'package*.json' "$g/" "_site/$g/"
+          done
+          cp -r garden-defenders/dist _site/garden-defenders
+          find _site -name '*.map' -delete
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
