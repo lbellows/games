@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Melon Town Adventure</title>
+  <meta name="description" content="A bright 3D nursery-rhyme adventure for little players: fix the bus, find the ducklings, spell your ABCs, pick melons and head home for bed." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+  <script type="importmap">
+    { "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js" } }
+  </script>
+</head>
+<body>
+  <div id="app"></div>
+
+  <div id="hud" hidden>
+    <div id="quest">
+      <div id="strip"></div>
+      <div id="qtitle"></div>
+      <div id="qdesc"></div>
+      <div id="qprog"></div>
+    </div>
+    <button id="muteBtn" aria-label="Toggle sound">🔊</button>
+  </div>
+
+  <div id="toast" role="status" aria-live="polite"></div>
+
+  <div id="touch" hidden>
+    <div id="stick"><div id="knob"></div></div>
+    <button id="jumpBtn" aria-label="Jump">Jump</button>
+  </div>
+
+  <div id="title" class="overlay">
+    <div class="card">
+      <div class="melon-logo" aria-hidden="true"></div>
+      <h1>Melon Town<br><span>Adventure</span></h1>
+      <p>Five little adventures in a sunny nursery-rhyme town!</p>
+      <ol class="quests">
+        <li>🚌 Fix the wheels on the bus</li>
+        <li>🐥 Bring five little ducks home</li>
+        <li>🔤 Find the ABC blocks in order</li>
+        <li>🍉 Pick ten watermelons</li>
+        <li>🌙 Go home for bedtime</li>
+      </ol>
+      <button id="startBtn" class="big">Let's play!</button>
+      <div class="controls">
+        <span><kbd>WASD</kbd>/<kbd>arrows</kbd> walk</span>
+        <span><kbd>Space</kbd> jump</span>
+        <span><kbd>drag</kbd> or <kbd>Q</kbd><kbd>E</kbd> turn camera</span>
+        <span><kbd>M</kbd> sound</span>
+      </div>
+      <p class="hint">Follow the bouncing yellow arrow!</p>
+    </div>
+  </div>
+
+  <div id="win" class="overlay" hidden>
+    <div class="card">
+      <div class="moon" aria-hidden="true">🌙</div>
+      <h1>Goodnight!</h1>
+      <p>You finished all five adventures in <b id="winTime"></b>.</p>
+      <p class="stars">⭐⭐⭐⭐⭐</p>
+      <button id="againBtn" class="big">Play again</button>
+    </div>
+  </div>
+
+  <div id="loading" class="overlay"><div class="card"><p>Loading…</p></div></div>
+
+  <script type="module" src="game.js"></script>
+</body>
+</html>

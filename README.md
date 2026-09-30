@@ -11,5 +11,6 @@ Play them at **https://lbellows.github.io/games/** (built and deployed by `.gith
 | [garden-defenders](garden-defenders/) | Tower defense campaign + arena mode (TypeScript/Vite) |
 | [grok-1shot-game](grok-1shot-game/) | Bloomrot, a gardening roguelike, one-shot build |
 | [void-runner](void-runner/) | Void Runner, twin-stick wave shooter |
+| [cocomelon](cocomelon/) | Melon Town Adventure, 3D nursery-rhyme adventure for little kids (Three.js) |
 
 Each directory keeps the full commit history of the standalone repo it came from.

@@ -31,7 +31,7 @@ jobs:
         run: |
           mkdir _site
           cp index.html _site/
-          for g in brotato-clone claude-1shot-shiningforce grok-1shot-game void-runner; do
+          for g in brotato-clone claude-1shot-shiningforce grok-1shot-game void-runner cocomelon; do
             rsync -a --exclude test --exclude '*.md' --exclude 'package*.json' "$g/" "_site/$g/"
           done
           cp -r garden-defenders/dist _site/garden-defenders
