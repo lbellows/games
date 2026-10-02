@@ -174,4 +174,4 @@ Balance lives in a few dedicated places, all hot-reloaded by the dev server:
 
 ## License
 
-Licensed under the [Apache License, Version 2.0](LICENSE).
+Licensed under the [GNU Affero General Public License v3.0 or later](LICENSE).
